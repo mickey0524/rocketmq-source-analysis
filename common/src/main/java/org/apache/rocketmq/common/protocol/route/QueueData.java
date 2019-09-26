@@ -20,12 +20,13 @@
  */
 package org.apache.rocketmq.common.protocol.route;
 
+// QueueData 指代 Queue 的信息
 public class QueueData implements Comparable<QueueData> {
-    private String brokerName;
+    private String brokerName;  // Queue 所属 Broker 的名字
     private int readQueueNums;
     private int writeQueueNums;
     private int perm;
-    private int topicSynFlag;
+    private int topicSynFlag;  // topic 是否是同步的
 
     public int getReadQueueNums() {
         return readQueueNums;
@@ -103,6 +104,7 @@ public class QueueData implements Comparable<QueueData> {
             + "]";
     }
 
+    // 和 BrokerData 一样，使用 brokerName 作为排序的依据
     @Override
     public int compareTo(QueueData o) {
         return this.brokerName.compareTo(o.getBrokerName());

@@ -23,11 +23,13 @@ import java.util.List;
 import java.util.Random;
 import org.apache.rocketmq.common.MixAll;
 
+// BrokerData 指代 Broker 的信息
 public class BrokerData implements Comparable<BrokerData> {
-    private String cluster;
-    private String brokerName;
+    private String cluster;  // 集群名称
+    private String brokerName;  // broker 名称
     private HashMap<Long/* brokerId */, String/* broker address */> brokerAddrs;
 
+    // 这个最好使用 ThreadLocalRandom.current().nextInt()，可以避免在多线程场景下对 seed 的竞争
     private final Random random = new Random();
 
     public BrokerData() {
@@ -46,8 +48,9 @@ public class BrokerData implements Comparable<BrokerData> {
      *
      * @return Broker address.
      */
+    // 优先挑选 Broker 的 Master 节点，否则随机选取一个 Slave 节点
     public String selectBrokerAddr() {
-        String addr = this.brokerAddrs.get(MixAll.MASTER_ID);
+        String addr = this.brokerAddrs.get(MixAll.MASTER_ID);  // 主节点 ID 为 0
 
         if (addr == null) {
             List<String> addrs = new ArrayList<String>(brokerAddrs.values());
@@ -109,6 +112,7 @@ public class BrokerData implements Comparable<BrokerData> {
         return "BrokerData [brokerName=" + brokerName + ", brokerAddrs=" + brokerAddrs + "]";
     }
 
+    // 按照 brokerName 进行排序
     @Override
     public int compareTo(BrokerData o) {
         return this.brokerName.compareTo(o.getBrokerName());

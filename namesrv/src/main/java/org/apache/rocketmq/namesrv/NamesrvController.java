@@ -144,6 +144,7 @@ public class NamesrvController {
         return true;
     }
 
+    // 根据 cluster 是否为测试环境，选择不同的 Processor
     private void registerProcessor() {
         if (namesrvConfig.isClusterTest()) {
 
