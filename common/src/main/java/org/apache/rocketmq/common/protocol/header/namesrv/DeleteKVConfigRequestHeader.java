@@ -21,6 +21,7 @@ import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
+// 删除 namespace 中的 key
 public class DeleteKVConfigRequestHeader implements CommandCustomHeader {
     @CFNotNull
     private String namespace;

@@ -21,6 +21,7 @@ import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
+// 不同的 netty server request 的 header 是不一样的，这个类对应了 putkvconfig 这个方法
 public class PutKVConfigRequestHeader implements CommandCustomHeader {
     @CFNotNull
     private String namespace;

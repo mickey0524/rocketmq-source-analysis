@@ -38,12 +38,15 @@ public class RemotingCommand {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
     private static final int RPC_TYPE = 0; // 0, REQUEST_COMMAND
     private static final int RPC_ONEWAY = 1; // 0, RPC
+    // 记录不同的 CommandCustomHeader 子类的 Field 数组
     private static final Map<Class<? extends CommandCustomHeader>, Field[]> CLASS_HASH_MAP =
         new HashMap<Class<? extends CommandCustomHeader>, Field[]>();
     private static final Map<Class, String> CANONICAL_NAME_CACHE = new HashMap<Class, String>();
     // 1, Oneway
     // 1, RESPONSE_COMMAND
+    // 记录 Field 是否允许为空
     private static final Map<Field, Boolean> NULLABLE_FIELD_CACHE = new HashMap<Field, Boolean>();
+    // 下面都是 int 等类型的 String 表示
     private static final String STRING_CANONICAL_NAME = String.class.getCanonicalName();
     private static final String DOUBLE_CANONICAL_NAME_1 = Double.class.getCanonicalName();
     private static final String DOUBLE_CANONICAL_NAME_2 = double.class.getCanonicalName();
@@ -106,10 +109,12 @@ public class RemotingCommand {
         }
     }
 
+    // 创建返回请求，默认是系统错误
     public static RemotingCommand createResponseCommand(Class<? extends CommandCustomHeader> classHeader) {
         return createResponseCommand(RemotingSysResponseCode.SYSTEM_ERROR, "not set any response code", classHeader);
     }
 
+    // 创建一个 RemotingCommand
     public static RemotingCommand createResponseCommand(int code, String remark,
         Class<? extends CommandCustomHeader> classHeader) {
         RemotingCommand cmd = new RemotingCommand();
@@ -117,7 +122,8 @@ public class RemotingCommand {
         cmd.setCode(code);
         cmd.setRemark(remark);
         setCmdVersion(cmd);
-
+        
+        // 如果 classHeader 不为 null，说明有东西需要返回
         if (classHeader != null) {
             try {
                 CommandCustomHeader objectHeader = classHeader.newInstance();
@@ -234,8 +240,8 @@ public class RemotingCommand {
     public CommandCustomHeader decodeCommandCustomHeader(
         Class<? extends CommandCustomHeader> classHeader) throws RemotingCommandException {
         CommandCustomHeader objectHeader;
-        try {
-            objectHeader = classHeader.newInstance();
+        try {CommandCustomHeader
+            objectHeader = classHeader.newInstance();  // 利用反射创建一个 CommandCustomHeader 实例
         } catch (InstantiationException e) {
             return null;
         } catch (IllegalAccessException e) {
@@ -247,30 +253,36 @@ public class RemotingCommand {
             Field[] fields = getClazzFields(classHeader);
             for (Field field : fields) {
                 if (!Modifier.isStatic(field.getModifiers())) {
-                    String fieldName = field.getName();
+                    String fieldName = field.getName();  // 拿到字段名称
                     if (!fieldName.startsWith("this")) {
                         try {
+                            // 从实例的 extFields 中寻找 fieldName 对应的字段
                             String value = this.extFields.get(fieldName);
                             if (null == value) {
+                                // 如果字段不允许为空，抛出异常
                                 if (!isFieldNullable(field)) {
                                     throw new RemotingCommandException("the custom field <" + fieldName + "> is null");
                                 }
                                 continue;
                             }
 
-                            field.setAccessible(true);
+                            field.setAccessible(true);  // 防止字段是 private 的
                             String type = getCanonicalName(field.getType());
                             Object valueParsed;
 
                             if (type.equals(STRING_CANONICAL_NAME)) {
                                 valueParsed = value;
                             } else if (type.equals(INTEGER_CANONICAL_NAME_1) || type.equals(INTEGER_CANONICAL_NAME_2)) {
+                                // int 类型或者 Integer 类型
                                 valueParsed = Integer.parseInt(value);
                             } else if (type.equals(LONG_CANONICAL_NAME_1) || type.equals(LONG_CANONICAL_NAME_2)) {
+                                // long 类型或者 Long 类型
                                 valueParsed = Long.parseLong(value);
                             } else if (type.equals(BOOLEAN_CANONICAL_NAME_1) || type.equals(BOOLEAN_CANONICAL_NAME_2)) {
+                                // boolean 类型
                                 valueParsed = Boolean.parseBoolean(value);
                             } else if (type.equals(DOUBLE_CANONICAL_NAME_1) || type.equals(DOUBLE_CANONICAL_NAME_2)) {
+                                // double 或者 Double 类型
                                 valueParsed = Double.parseDouble(value);
                             } else {
                                 throw new RemotingCommandException("the custom field <" + fieldName + "> type is not supported");
@@ -291,6 +303,7 @@ public class RemotingCommand {
         return objectHeader;
     }
 
+    // getOrCreate Field 数组
     private Field[] getClazzFields(Class<? extends CommandCustomHeader> classHeader) {
         Field[] field = CLASS_HASH_MAP.get(classHeader);
 
@@ -303,8 +316,11 @@ public class RemotingCommand {
         return field;
     }
 
+    // 判断字段是否允许为空
     private boolean isFieldNullable(Field field) {
+        // NULLABLE_FIELD_CACHE 是一个 hashMap，key 是 Field，value 是 boolean，指代是否允许为空
         if (!NULLABLE_FIELD_CACHE.containsKey(field)) {
+            // 利用反射，Field 上有 CFNotNull 注解表示不允许为空
             Annotation annotation = field.getAnnotation(CFNotNull.class);
             synchronized (NULLABLE_FIELD_CACHE) {
                 NULLABLE_FIELD_CACHE.put(field, annotation == null);
@@ -313,6 +329,7 @@ public class RemotingCommand {
         return NULLABLE_FIELD_CACHE.get(field);
     }
 
+    // 将字段类型转为 String，作为 key 放入 HashMap 中，在 decode 的时候进行类型转化
     private String getCanonicalName(Class clazz) {
         String name = CANONICAL_NAME_CACHE.get(clazz);
 

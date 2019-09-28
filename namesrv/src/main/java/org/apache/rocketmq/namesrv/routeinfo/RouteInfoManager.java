@@ -73,6 +73,7 @@ public class RouteInfoManager {
         this.filterServerTable = new HashMap<String, List<String>>(256);
     }
 
+    // 获取全部 cluster 的 info
     public byte[] getAllClusterInfo() {
         ClusterInfo clusterInfoSerializeWrapper = new ClusterInfo();
         clusterInfoSerializeWrapper.setBrokerAddrTable(this.brokerAddrTable);
@@ -298,6 +299,7 @@ public class RouteInfoManager {
         return 0;
     }
 
+    // 传入一个 brokerName，清除 brokerName 对应的 queueData 的写权限
     private int wipeWritePermOfBroker(final String brokerName) {
         int wipeTopicCnt = 0;
         Iterator<Entry<String, List<QueueData>>> itTopic = this.topicQueueTable.entrySet().iterator();
@@ -308,6 +310,7 @@ public class RouteInfoManager {
             Iterator<QueueData> it = qdList.iterator();
             while (it.hasNext()) {
                 QueueData qd = it.next();
+                // 找到指定 brokerName 对应的 QueueData 列表
                 if (qd.getBrokerName().equals(brokerName)) {
                     int perm = qd.getPerm();
                     perm &= ~PermName.PERM_WRITE;
@@ -671,6 +674,8 @@ public class RouteInfoManager {
     }
 
     public byte[] getSystemTopicList() {
+        // 这个 TopicList 的命名真是一言难尽。。。
+        // 在这个函数里，topicList 放了 clusterName，放了 brokerName，还放了 brokerAddr。。。
         TopicList topicList = new TopicList();
         try {
             try {

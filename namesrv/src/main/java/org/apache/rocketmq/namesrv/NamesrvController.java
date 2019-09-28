@@ -74,10 +74,12 @@ public class NamesrvController {
         this.configuration.setStorePathFromConfig(this.namesrvConfig, "configStorePath");
     }
 
+    // NamesrvStartup 的 start(NamesrvController) 方法会调用 initialize
     public boolean initialize() {
 
         this.kvConfigManager.load();
 
+        // 创建 server 实例
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
 
         this.remotingExecutor =

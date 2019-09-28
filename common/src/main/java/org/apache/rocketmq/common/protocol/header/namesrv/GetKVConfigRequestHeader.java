@@ -21,6 +21,7 @@ import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
+// 从 kvconfig 中的 configTable 中获取 namespace 中的 key 对应的 value
 public class GetKVConfigRequestHeader implements CommandCustomHeader {
     @CFNotNull
     private String namespace;
