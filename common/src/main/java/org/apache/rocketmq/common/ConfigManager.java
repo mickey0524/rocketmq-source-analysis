@@ -31,10 +31,11 @@ public abstract class ConfigManager {
         try {
             fileName = this.configFilePath();
             String jsonString = MixAll.file2String(fileName);
-
+            // 当文件内容为空的时候
             if (null == jsonString || jsonString.length() == 0) {
                 return this.loadBak();
             } else {
+                // 解析 jsonString
                 this.decode(jsonString);
                 log.info("load " + fileName + " OK");
                 return true;
@@ -45,8 +46,10 @@ public abstract class ConfigManager {
         }
     }
 
+    // 持久化的 filename，交给子类自行实现
     public abstract String configFilePath();
 
+    // 从 backup 文件中读取
     private boolean loadBak() {
         String fileName = null;
         try {

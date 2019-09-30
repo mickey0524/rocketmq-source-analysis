@@ -86,7 +86,7 @@ public class NamesrvStartup {
         // 默认端口是 9876
         nettyServerConfig.setListenPort(9876);
         
-        // 启动的时候设置了 -c 参数
+        // 启动的时候设置了 -c 参数，arg 是 configFile
         if (commandLine.hasOption('c')) {
             String file = commandLine.getOptionValue('c');
             if (file != null) {
@@ -94,6 +94,7 @@ public class NamesrvStartup {
                 InputStream in = new BufferedInputStream(new FileInputStream(file));
                 properties = new Properties();
                 properties.load(in);
+                // 将 file 中定义的 key 写入 namesrvConfig 或 nettyServerConfig
                 MixAll.properties2Object(properties, namesrvConfig);
                 MixAll.properties2Object(properties, nettyServerConfig);
 
@@ -147,7 +148,7 @@ public class NamesrvStartup {
             throw new IllegalArgumentException("NamesrvController is null");
         }
 
-        // NamesrvController 启动
+        // NamesrvController 初始化
         boolean initResult = controller.initialize();
         if (!initResult) {
             controller.shutdown();
@@ -174,10 +175,12 @@ public class NamesrvStartup {
 
     // build -c config 文件 -p 命令行上的配置
     public static Options buildCommandlineOptions(final Options options) {
+        // namesrv configfile 路径
         Option opt = new Option("c", "configFile", true, "Name server config properties file");
         opt.setRequired(false);
         options.addOption(opt);
 
+        // 是否将所有的 config item 打印出来
         opt = new Option("p", "printConfigItem", false, "Print all config item");
         opt.setRequired(false);
         options.addOption(opt);

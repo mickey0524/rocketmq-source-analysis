@@ -19,6 +19,7 @@ package org.apache.rocketmq.common;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+// BrokerConfig 的单例
 public class BrokerConfigSingleton {
     private static AtomicBoolean isInit = new AtomicBoolean();
     private static BrokerConfig brokerConfig;

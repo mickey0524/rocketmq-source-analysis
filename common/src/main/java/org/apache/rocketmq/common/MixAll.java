@@ -167,6 +167,7 @@ public class MixAll {
         file.renameTo(new File(fileName));
     }
 
+    // 将 string 写入 file
     public static void string2FileNotSafe(final String str, final String fileName) throws IOException {
         File file = new File(fileName);
         // 如果父亲目录不存在，则创建目录
@@ -242,14 +243,17 @@ public class MixAll {
         return null;
     }
 
+    // 打印对象属性
     public static void printObjectProperties(final InternalLogger logger, final Object object) {
         printObjectProperties(logger, object, false);
     }
 
+    // 打印对象属性
     public static void printObjectProperties(final InternalLogger logger, final Object object,
         final boolean onlyImportantField) {
         Field[] fields = object.getClass().getDeclaredFields();
         for (Field field : fields) {
+            // 只处理非静态字段
             if (!Modifier.isStatic(field.getModifiers())) {
                 String name = field.getName();
                 if (!name.startsWith("this")) {
@@ -263,7 +267,8 @@ public class MixAll {
                     } catch (IllegalAccessException e) {
                         log.error("Failed to obtain object properties", e);
                     }
-
+                    
+                    // 如果 onlyImportantField 为 true，只打印加了 ImportantField 注解的字段
                     if (onlyImportantField) {
                         Annotation annotation = field.getAnnotation(ImportantField.class);
                         if (null == annotation) {
@@ -280,6 +285,7 @@ public class MixAll {
         }
     }
 
+    // 遍历拼接
     public static String properties2String(final Properties properties) {
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<Object, Object> entry : properties.entrySet()) {
@@ -290,6 +296,7 @@ public class MixAll {
         return sb.toString();
     }
 
+    // properties.load(in) 将 String 解析为 Properties
     public static Properties string2Properties(final String str) {
         Properties properties = new Properties();
         try {

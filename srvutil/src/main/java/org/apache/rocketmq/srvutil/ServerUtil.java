@@ -30,8 +30,9 @@ public class ServerUtil {
 
     // build 一个 命令行 Options
     public static Options buildCommandlineOptions(final Options options) {
+        // Option(opt, longOpt, hasArg, description)
         Option opt = new Option("h", "help", false, "Print help");
-        opt.setRequired(false);
+        opt.setRequired(false);  // 这个 option 是否是必须的
         options.addOption(opt);
 
         opt =
@@ -67,6 +68,7 @@ public class ServerUtil {
         hf.printHelp(appName, options, true);
     }
 
+    // 将命令行配置的散项写入 Properties 对象
     public static Properties commandLine2Properties(final CommandLine commandLine) {
         Properties properties = new Properties();
         Option[] opts = commandLine.getOptions();
