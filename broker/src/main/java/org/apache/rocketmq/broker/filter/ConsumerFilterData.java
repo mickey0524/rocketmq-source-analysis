@@ -29,6 +29,7 @@ import java.util.Collections;
 /**
  * Filter data of consumer.
  */
+// 消费者来过滤数据
 public class ConsumerFilterData {
 
     private String consumerGroup;
@@ -41,10 +42,12 @@ public class ConsumerFilterData {
     private BloomFilterData bloomFilterData;
     private long clientVersion;
 
+    // 判断是否死亡
     public boolean isDead() {
         return this.deadTime >= this.bornTime;
     }
 
+    // 获取死了多长时间了
     public long howLongAfterDeath() {
         if (isDead()) {
             return System.currentTimeMillis() - getDeadTime();

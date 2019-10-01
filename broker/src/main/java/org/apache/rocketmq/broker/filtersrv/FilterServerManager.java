@@ -35,9 +35,15 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 
+// rocketmq 默认为客户端自己进行消息过滤，也可以使用 server filter
+// broker 所在的机器会启动多个 FilterServer 过滤线程
+// Consumer 启动后，会向 FilterServer 上传一个过滤的 Java 类
+// Consumer 从 FilterServer 拉消息，FilterServer 将请求转収给 Broker，FilterServer 从 Broker 收到消息后，挄照
+// Consumer 上传的 Java 过滤程序做过滤，过滤完成后返回给 Consumer
+// FilterServerManager 来管理服务端消息过滤
 public class FilterServerManager {
 
-    public static final long FILTER_SERVER_MAX_IDLE_TIME_MILLS = 30000;
+    public static final long FILTER_SERVER_MAX_IDLE_TIME_MILLS = 30000;  // 最多空闲 30s
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final ConcurrentMap<Channel, FilterServerInfo> filterServerTable =
         new ConcurrentHashMap<Channel, FilterServerInfo>(16);
@@ -61,10 +67,11 @@ public class FilterServerManager {
                     log.error("", e);
                 }
             }
-        }, 1000 * 5, 1000 * 30, TimeUnit.MILLISECONDS);
+        }, 1000 * 5, 1000 * 30, TimeUnit.MILLISECONDS);  // 5s 后执行 createFilterServer 方法，然后没 30s 定时执行一次
     }
 
     public void createFilterServer() {
+        // more 代表还需要启动的 filterServer 线程
         int more =
             this.brokerController.getBrokerConfig().getFilterServerNums() - this.filterServerTable.size();
         String cmd = this.buildStartCommand();
@@ -73,7 +80,9 @@ public class FilterServerManager {
         }
     }
 
+    // build shell 命令
     private String buildStartCommand() {
+        // 这里为啥不用 StringBuilder...虽然 JVM 会自动优化，但是代码洁癖啊--
         String config = "";
         if (BrokerStartup.configFile != null) {
             config = String.format("-c %s", BrokerStartup.configFile);
@@ -82,7 +91,8 @@ public class FilterServerManager {
         if (this.brokerController.getBrokerConfig().getNamesrvAddr() != null) {
             config += String.format(" -n %s", this.brokerController.getBrokerConfig().getNamesrvAddr());
         }
-
+        
+        // 分平台，获得 shell cmd
         if (RemotingUtil.isWindowsPlatform()) {
             return String.format("start /b %s\\bin\\mqfiltersrv.exe %s",
                 this.brokerController.getBrokerConfig().getRocketmqHome(),
@@ -98,8 +108,10 @@ public class FilterServerManager {
         this.scheduledExecutorService.shutdown();
     }
 
+    // 注册 filterServer
     public void registerFilterServer(final Channel channel, final String filterServerAddr) {
         FilterServerInfo filterServerInfo = this.filterServerTable.get(channel);
+        // 如果 channel 已经对应一个 filterServer，更新 ts
         if (filterServerInfo != null) {
             filterServerInfo.setLastUpdateTimestamp(System.currentTimeMillis());
         } else {
@@ -111,6 +123,7 @@ public class FilterServerManager {
         }
     }
 
+    // 检查不活跃的 channel
     public void scanNotActiveChannel() {
 
         Iterator<Entry<Channel, FilterServerInfo>> it = this.filterServerTable.entrySet().iterator();
@@ -118,6 +131,7 @@ public class FilterServerManager {
             Entry<Channel, FilterServerInfo> next = it.next();
             long timestamp = next.getValue().getLastUpdateTimestamp();
             Channel channel = next.getKey();
+            // 30s 不活跃，删除 filterServer，关闭 channel
             if ((System.currentTimeMillis() - timestamp) > FILTER_SERVER_MAX_IDLE_TIME_MILLS) {
                 log.info("The Filter Server<{}> expired, remove it", next.getKey());
                 it.remove();
@@ -126,6 +140,7 @@ public class FilterServerManager {
         }
     }
 
+    // 删除 channel
     public void doChannelCloseEvent(final String remoteAddr, final Channel channel) {
         FilterServerInfo old = this.filterServerTable.remove(channel);
         if (old != null) {
@@ -134,6 +149,7 @@ public class FilterServerManager {
         }
     }
 
+    // 返回所有 filterServer 的地址
     public List<String> buildNewFilterServerList() {
         List<String> addr = new ArrayList<>();
         Iterator<Entry<Channel, FilterServerInfo>> it = this.filterServerTable.entrySet().iterator();
@@ -144,9 +160,10 @@ public class FilterServerManager {
         return addr;
     }
 
+    // 静态内部类
     static class FilterServerInfo {
-        private String filterServerAddr;
-        private long lastUpdateTimestamp;
+        private String filterServerAddr;  // filterServer 的地址
+        private long lastUpdateTimestamp;  // 上次更新的时间戳
 
         public String getFilterServerAddr() {
             return filterServerAddr;

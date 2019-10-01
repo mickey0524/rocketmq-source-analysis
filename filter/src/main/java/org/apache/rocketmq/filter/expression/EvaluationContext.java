@@ -15,26 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.broker.latency;
+package org.apache.rocketmq.filter.expression;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.FutureTask;
+import java.util.Map;
 
-// 继承 FutureTask 类
-public class FutureTaskExt<V> extends FutureTask<V> {
-    private final Runnable runnable;
+/**
+ * Context of evaluate expression.
+ *
+ * Compare to org.apache.activemq.filter.MessageEvaluationContext, this is just an interface.
+ */
+public interface EvaluationContext {
 
-    public FutureTaskExt(final Callable<V> callable) {
-        super(callable);
-        this.runnable = null;
-    }
+    /**
+     * Get value by name from context
+     */
+    Object get(String name);
 
-    public FutureTaskExt(final Runnable runnable, final V result) {
-        super(runnable, result);
-        this.runnable = runnable;
-    }
-
-    public Runnable getRunnable() {
-        return runnable;
-    }
+    /**
+     * Context variables.
+     */
+    Map<String, Object> keyValues();
 }

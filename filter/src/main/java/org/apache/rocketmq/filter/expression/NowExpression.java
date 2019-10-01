@@ -15,29 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.broker.filtersrv;
+package org.apache.rocketmq.filter.expression;
 
-
-import org.apache.rocketmq.logging.InternalLogger;
-
-public class FilterServerUtil {
-    // execute shell
-    public static void callShell(final String shellString, final InternalLogger log) {
-        Process process = null;
-        try {
-            String[] cmdArray = splitShellString(shellString);
-            process = Runtime.getRuntime().exec(cmdArray);
-            process.waitFor();
-            log.info("CallShell: <{}> OK", shellString);
-        } catch (Throwable e) {
-            log.error("CallShell: readLine IOException, {}", shellString, e);
-        } finally {
-            if (null != process)
-                process.destroy();
-        }
+/**
+ * Current time expression.Just for test.
+ */
+public class NowExpression extends ConstantExpression {
+    public NowExpression() {
+        super("now");
     }
 
-    private static String[] splitShellString(final String shellString) {
-        return shellString.split(" ");
+    @Override
+    public Object evaluate(EvaluationContext context) throws Exception {
+        return new Long(System.currentTimeMillis());
+    }
+
+    public Object getValue() {
+        return new Long(System.currentTimeMillis());
     }
 }

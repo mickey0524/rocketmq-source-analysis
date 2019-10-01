@@ -15,29 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.broker.filtersrv;
+package org.apache.rocketmq.filter.expression;
 
+import java.util.Map;
 
-import org.apache.rocketmq.logging.InternalLogger;
-
-public class FilterServerUtil {
-    // execute shell
-    public static void callShell(final String shellString, final InternalLogger log) {
-        Process process = null;
-        try {
-            String[] cmdArray = splitShellString(shellString);
-            process = Runtime.getRuntime().exec(cmdArray);
-            process.waitFor();
-            log.info("CallShell: <{}> OK", shellString);
-        } catch (Throwable e) {
-            log.error("CallShell: readLine IOException, {}", shellString, e);
-        } finally {
-            if (null != process)
-                process.destroy();
-        }
+/**
+ * Empty context.
+ */
+public class EmptyEvaluationContext implements EvaluationContext {
+    @Override
+    public Object get(String name) {
+        return null;
     }
 
-    private static String[] splitShellString(final String shellString) {
-        return shellString.split(" ");
+    @Override
+    public Map<String, Object> keyValues() {
+        return null;
     }
 }

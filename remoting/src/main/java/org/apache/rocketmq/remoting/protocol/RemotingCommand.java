@@ -88,6 +88,7 @@ public class RemotingCommand {
     protected RemotingCommand() {
     }
 
+    // 创建一个 request command
     public static RemotingCommand createRequestCommand(int code, CommandCustomHeader customHeader) {
         RemotingCommand cmd = new RemotingCommand();
         cmd.setCode(code);
@@ -96,6 +97,7 @@ public class RemotingCommand {
         return cmd;
     }
 
+    // 设置 cmd 的 version
     private static void setCmdVersion(RemotingCommand cmd) {
         if (configVersion >= 0) {
             cmd.setVersion(configVersion);

@@ -456,7 +456,8 @@ public class TopicConfigManager extends ConfigManager {
     public String encode() {
         return encode(false);
     }
-
+    
+    // /root/store/config/topics.json
     @Override
     public String configFilePath() {
         return BrokerPathConfigHelper.getTopicConfigPath(this.brokerController.getMessageStoreConfig()

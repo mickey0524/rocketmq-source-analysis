@@ -15,29 +15,32 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.broker.filtersrv;
+package org.apache.rocketmq.filter.expression;
 
+/**
+ * Exception.
+ */
+public class MQFilterException extends Exception {
+    private static final long serialVersionUID = 1L;
+    private final int responseCode;
+    private final String errorMessage;
 
-import org.apache.rocketmq.logging.InternalLogger;
-
-public class FilterServerUtil {
-    // execute shell
-    public static void callShell(final String shellString, final InternalLogger log) {
-        Process process = null;
-        try {
-            String[] cmdArray = splitShellString(shellString);
-            process = Runtime.getRuntime().exec(cmdArray);
-            process.waitFor();
-            log.info("CallShell: <{}> OK", shellString);
-        } catch (Throwable e) {
-            log.error("CallShell: readLine IOException, {}", shellString, e);
-        } finally {
-            if (null != process)
-                process.destroy();
-        }
+    public MQFilterException(String errorMessage, Throwable cause) {
+        super(cause);
+        this.responseCode = -1;
+        this.errorMessage = errorMessage;
     }
 
-    private static String[] splitShellString(final String shellString) {
-        return shellString.split(" ");
+    public MQFilterException(int responseCode, String errorMessage) {
+        this.responseCode = responseCode;
+        this.errorMessage = errorMessage;
+    }
+
+    public int getResponseCode() {
+        return responseCode;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
     }
 }

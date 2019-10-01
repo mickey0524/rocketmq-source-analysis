@@ -44,7 +44,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.FILTER_LOGGER_NAME);
 
-    private static final long MS_24_HOUR = 24 * 3600 * 1000;
+    private static final long MS_24_HOUR = 24 * 3600 * 1000;  // 一天的毫秒数
 
     private ConcurrentMap<String/*Topic*/, FilterDataMapByTopic>
         filterDataByTopic = new ConcurrentHashMap<String/*consumer group*/, FilterDataMapByTopic>(256);
@@ -54,6 +54,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
     public ConsumerFilterManager() {
         // just for test
+        // 这里只是为了测试
         this.bloomFilter = BloomFilter.createByFn(20, 64);
     }
 
@@ -74,6 +75,7 @@ public class ConsumerFilterManager extends ConfigManager {
      *
      * @return maybe null
      */
+    // 新建一个 ConsumerFilterData 实例
     public static ConsumerFilterData build(final String topic, final String consumerGroup,
         final String expression, final String type,
         final long clientVersion) {
@@ -136,6 +138,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
     public boolean register(final String topic, final String consumerGroup, final String expression,
         final String type, final long clientVersion) {
+        // type 为空或 TAG，返回 false
         if (ExpressionType.isTagType(type)) {
             return false;
         }
@@ -146,6 +149,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
         FilterDataMapByTopic filterDataMapByTopic = this.filterDataByTopic.get(topic);
 
+        // getOrDefault topic
         if (filterDataMapByTopic == null) {
             FilterDataMapByTopic temp = new FilterDataMapByTopic(topic);
             FilterDataMapByTopic prev = this.filterDataByTopic.putIfAbsent(topic, temp);
@@ -157,12 +161,14 @@ public class ConsumerFilterManager extends ConfigManager {
         return filterDataMapByTopic.register(consumerGroup, expression, type, bloomFilterData, clientVersion);
     }
 
+    // 将 consumerGroup 设置为 dead
     public void unRegister(final String consumerGroup) {
         for (String topic : filterDataByTopic.keySet()) {
             this.filterDataByTopic.get(topic).unRegister(consumerGroup);
         }
     }
 
+    // 获取指定 topic、consumerGroup 对应的 ConsumerFilterData
     public ConsumerFilterData get(final String topic, final String consumerGroup) {
         if (!this.filterDataByTopic.containsKey(topic)) {
             return null;
@@ -174,6 +180,7 @@ public class ConsumerFilterManager extends ConfigManager {
         return this.filterDataByTopic.get(topic).getGroupFilterData().get(consumerGroup);
     }
 
+    // 获取 consumerGroup 对应的所有 ConsumerFilterData
     public Collection<ConsumerFilterData> getByGroup(final String consumerGroup) {
         Collection<ConsumerFilterData> ret = new HashSet<ConsumerFilterData>();
 
@@ -195,6 +202,7 @@ public class ConsumerFilterManager extends ConfigManager {
         return ret;
     }
 
+    // 获取 topic 对应的全部 ConsumerFilterData
     public final Collection<ConsumerFilterData> get(final String topic) {
         if (!this.filterDataByTopic.containsKey(topic)) {
             return null;
@@ -215,6 +223,7 @@ public class ConsumerFilterManager extends ConfigManager {
         return encode(false);
     }
 
+    // root/store/config/consumerFilter.json
     @Override
     public String configFilePath() {
         if (this.brokerController != null) {
@@ -225,6 +234,7 @@ public class ConsumerFilterManager extends ConfigManager {
         return BrokerPathConfigHelper.getConsumerFilterPath("./unit_test");
     }
 
+    // 将 JSON 字符串反序列化为 ConsumerFilterManager 对象
     @Override
     public void decode(final String jsonString) {
         ConsumerFilterManager load = RemotingSerializable.fromJson(jsonString, ConsumerFilterManager.class);
@@ -245,6 +255,8 @@ public class ConsumerFilterManager extends ConfigManager {
                     }
 
                     try {
+                        // ConsumerFilterData 的 compiledExpression 是 transient 的
+                        // 所以这里需要重新生成
                         filterData.setCompiledExpression(
                             FilterFactory.INSTANCE.get(filterData.getExpressionType()).compile(filterData.getExpression())
                         );
@@ -254,6 +266,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
                     // check whether bloom filter is changed
                     // if changed, ignore the bit map calculated before.
+                    // 如果实例的 bloom filter 与 filterData  的 bloomFilterData 不 match，直接 break
                     if (!this.bloomFilter.isValid(filterData.getBloomFilterData())) {
                         bloomChanged = true;
                         log.info("Bloom filter is changed!So ignore all filter data persisted! {}, {}", this.bloomFilter, filterData.getBloomFilterData());
@@ -264,6 +277,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
                     if (filterData.getDeadTime() == 0) {
                         // we think all consumers are dead when load
+                        // load 的 consumer 都是死的
                         long deadTime = System.currentTimeMillis() - 30 * 1000;
                         filterData.setDeadTime(
                             deadTime <= filterData.getBornTime() ? filterData.getBornTime() : deadTime
@@ -278,6 +292,7 @@ public class ConsumerFilterManager extends ConfigManager {
         }
     }
 
+    // 序列化为 JSON 字符串
     @Override
     public String encode(final boolean prettyFormat) {
         // clean
@@ -299,12 +314,14 @@ public class ConsumerFilterManager extends ConfigManager {
                 Map.Entry<String, ConsumerFilterData> filterDataByGroup = filterDataIterator.next();
 
                 ConsumerFilterData filterData = filterDataByGroup.getValue();
+                // 清理死了很久的 comsumer
                 if (filterData.howLongAfterDeath() >= (this.brokerController == null ? MS_24_HOUR : this.brokerController.getBrokerConfig().getFilterDataCleanTimeSpan())) {
                     log.info("Remove filter consumer {}, died too long!", filterDataByGroup.getValue());
                     filterDataIterator.remove();
                 }
             }
 
+            // 如果 filterDataMapByTopic 没有一个 kv pair，将 topic，filterDataMapByTopic 的 pair 删除
             if (filterDataMapByTopic.getValue().getGroupFilterData().isEmpty()) {
                 log.info("Topic has no consumer, remove it! {}", filterDataMapByTopic.getKey());
                 topicIterator.remove();
@@ -320,8 +337,9 @@ public class ConsumerFilterManager extends ConfigManager {
         this.filterDataByTopic = filterDataByTopic;
     }
 
+    // 按 topic 来 filter data
     public static class FilterDataMapByTopic {
-
+        // topic 有很多 consumer group 来消费
         private ConcurrentMap<String/*consumer group*/, ConsumerFilterData>
             groupFilterData = new ConcurrentHashMap<String, ConsumerFilterData>();
 
@@ -334,6 +352,7 @@ public class ConsumerFilterManager extends ConfigManager {
             this.topic = topic;
         }
 
+        // 取消注册，设置 ConsumerFilterData 的死亡时间为当前时间
         public void unRegister(String consumerGroup) {
             if (!this.groupFilterData.containsKey(consumerGroup)) {
                 return;
@@ -352,6 +371,7 @@ public class ConsumerFilterManager extends ConfigManager {
             data.setDeadTime(now);
         }
 
+        // 注册
         public boolean register(String consumerGroup, String expression, String type, BloomFilterData bloomFilterData,
             long clientVersion) {
             ConsumerFilterData old = this.groupFilterData.get(consumerGroup);
@@ -368,6 +388,7 @@ public class ConsumerFilterManager extends ConfigManager {
                     log.info("New consumer filter registered: {}", consumerFilterData);
                     return true;
                 } else {
+                    // 比较 old 的 clientVersion 和传入的 clientVersion
                     if (clientVersion <= old.getClientVersion()) {
                         if (!type.equals(old.getExpressionType()) || !expression.equals(old.getExpression())) {
                             log.warn("Ignore consumer({} : {}) filter(concurrent), because of version {} <= {}, but maybe info changed!old={}:{}, ignored={}:{}",
@@ -389,6 +410,7 @@ public class ConsumerFilterManager extends ConfigManager {
                     }
                 }
             } else {
+                // 和前面 putIfAbsent 之后的逻辑一样
                 if (clientVersion <= old.getClientVersion()) {
                     if (!type.equals(old.getExpressionType()) || !expression.equals(old.getExpression())) {
                         log.info("Ignore consumer({}:{}) filter, because of version {} <= {}, but maybe info changed!old={}:{}, ignored={}:{}",
@@ -404,7 +426,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
                     return false;
                 }
-
+                // change 指代参数是否发生了变化
                 boolean change = !old.getExpression().equals(expression) || !old.getExpressionType().equals(type);
                 if (old.getBloomFilterData() == null && bloomFilterData != null) {
                     change = true;
@@ -415,6 +437,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
                 // if subscribe data is changed, or consumer is died too long.
                 if (change) {
+                    // change 为 true，创建一个新的 ConsumerFilterData 实例
                     ConsumerFilterData consumerFilterData = build(topic, consumerGroup, expression, type, clientVersion);
                     if (consumerFilterData == null) {
                         // new expression compile error, remove old, let client report error.
@@ -430,6 +453,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
                     return true;
                 } else {
+                    // 复活
                     old.setClientVersion(clientVersion);
                     if (old.isDead()) {
                         reAlive(old);
@@ -439,6 +463,7 @@ public class ConsumerFilterManager extends ConfigManager {
             }
         }
 
+        // 将死去的 ConsumerFilterData 复活
         protected void reAlive(ConsumerFilterData filterData) {
             long oldDeadTime = filterData.getDeadTime();
             filterData.setDeadTime(0);

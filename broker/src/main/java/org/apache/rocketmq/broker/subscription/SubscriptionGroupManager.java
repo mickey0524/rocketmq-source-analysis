@@ -31,11 +31,13 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
+// 管理消费者订阅关系
 public class SubscriptionGroupManager extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 
     private final ConcurrentMap<String, SubscriptionGroupConfig> subscriptionGroupTable =
         new ConcurrentHashMap<String, SubscriptionGroupConfig>(1024);
+    // 标识数据版本
     private final DataVersion dataVersion = new DataVersion();
     private transient BrokerController brokerController;
 
@@ -48,6 +50,7 @@ public class SubscriptionGroupManager extends ConfigManager {
         this.init();
     }
 
+    // 初始化
     private void init() {
         {
             SubscriptionGroupConfig subscriptionGroupConfig = new SubscriptionGroupConfig();
@@ -97,6 +100,7 @@ public class SubscriptionGroupManager extends ConfigManager {
     }
 
     public void updateSubscriptionGroupConfig(final SubscriptionGroupConfig config) {
+        // subscriptionGroupTable 是 CHM，直接 put 不需要上锁
         SubscriptionGroupConfig old = this.subscriptionGroupTable.put(config.getGroupName(), config);
         if (old != null) {
             log.info("update subscription group config, old: {} new: {}", old, config);
@@ -112,6 +116,7 @@ public class SubscriptionGroupManager extends ConfigManager {
     public void disableConsume(final String groupName) {
         SubscriptionGroupConfig old = this.subscriptionGroupTable.get(groupName);
         if (old != null) {
+            // 将 groupName 对应的 Consumer Group 设置为不能消费
             old.setConsumeEnable(false);
             this.dataVersion.nextVersion();
         }
@@ -119,6 +124,7 @@ public class SubscriptionGroupManager extends ConfigManager {
 
     public SubscriptionGroupConfig findSubscriptionGroupConfig(final String group) {
         SubscriptionGroupConfig subscriptionGroupConfig = this.subscriptionGroupTable.get(group);
+        // 没有当前 group 的配置
         if (null == subscriptionGroupConfig) {
             if (brokerController.getBrokerConfig().isAutoCreateSubscriptionGroup() || MixAll.isSysConsumerGroup(group)) {
                 subscriptionGroupConfig = new SubscriptionGroupConfig();
@@ -140,6 +146,7 @@ public class SubscriptionGroupManager extends ConfigManager {
         return this.encode(false);
     }
 
+    // root/store/config/subscriptionGroup.json
     @Override
     public String configFilePath() {
         return BrokerPathConfigHelper.getSubscriptionGroupPath(this.brokerController.getMessageStoreConfig()
@@ -162,6 +169,7 @@ public class SubscriptionGroupManager extends ConfigManager {
         return RemotingSerializable.toJson(this, prettyFormat);
     }
 
+    // 打印所有配置
     private void printLoadDataWhenFirstBoot(final SubscriptionGroupManager sgm) {
         Iterator<Entry<String, SubscriptionGroupConfig>> it = sgm.getSubscriptionGroupTable().entrySet().iterator();
         while (it.hasNext()) {
@@ -178,6 +186,7 @@ public class SubscriptionGroupManager extends ConfigManager {
         return dataVersion;
     }
 
+    // 删除一个 groupName 对应的配置
     public void deleteSubscriptionGroupConfig(final String groupName) {
         SubscriptionGroupConfig old = this.subscriptionGroupTable.remove(groupName);
         if (old != null) {

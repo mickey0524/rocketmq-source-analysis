@@ -52,6 +52,7 @@ public class BrokerFastFailure {
     }
 
     public void start() {
+        // 定时检查
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -96,6 +97,7 @@ public class BrokerFastFailure {
     void cleanExpiredRequestInQueue(final BlockingQueue<Runnable> blockingQueue, final long maxWaitTimeMillsInQueue) {
         while (true) {
             try {
+                // 队列不为空
                 if (!blockingQueue.isEmpty()) {
                     final Runnable runnable = blockingQueue.peek();
                     if (null == runnable) {
@@ -108,6 +110,7 @@ public class BrokerFastFailure {
 
                     final long behind = System.currentTimeMillis() - rt.getCreateTimestamp();
                     if (behind >= maxWaitTimeMillsInQueue) {
+                        // 返回队列中等待的请求，告知系统繁忙
                         if (blockingQueue.remove(runnable)) {
                             rt.setStopRun(true);
                             rt.returnResponse(RemotingSysResponseCode.SYSTEM_BUSY, String.format("[TIMEOUT_CLEAN_QUEUE]broker busy, start flow control for a while, period in queue: %sms, size of queue: %d", behind, blockingQueue.size()));

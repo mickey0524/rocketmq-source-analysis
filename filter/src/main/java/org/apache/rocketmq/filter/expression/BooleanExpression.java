@@ -15,26 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.broker.latency;
+package org.apache.rocketmq.filter.expression;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.FutureTask;
+/**
+ * A BooleanExpression is an expression that always
+ * produces a Boolean result.
+ * <p>
+ * This class was taken from ActiveMQ org.apache.activemq.filter.BooleanExpression,
+ * but the parameter is changed to an interface.
+ * </p>
+ *
+ * @see org.apache.rocketmq.filter.expression.EvaluationContext
+ */
+public interface BooleanExpression extends Expression {
 
-// 继承 FutureTask 类
-public class FutureTaskExt<V> extends FutureTask<V> {
-    private final Runnable runnable;
+    /**
+     * @return true if the expression evaluates to Boolean.TRUE.
+     */
+    boolean matches(EvaluationContext context) throws Exception;
 
-    public FutureTaskExt(final Callable<V> callable) {
-        super(callable);
-        this.runnable = null;
-    }
-
-    public FutureTaskExt(final Runnable runnable, final V result) {
-        super(runnable, result);
-        this.runnable = runnable;
-    }
-
-    public Runnable getRunnable() {
-        return runnable;
-    }
 }

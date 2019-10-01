@@ -41,12 +41,14 @@ public class ProducerManager {
     private static final long CHANNEL_EXPIRED_TIMEOUT = 1000 * 120;
     private static final int GET_AVALIABLE_CHANNEL_RETRY_COUNT = 3;
     private final Lock groupChannelLock = new ReentrantLock();
+    // 按照 producer group 对生产者进行管理
     private final HashMap<String /* group name */, HashMap<Channel, ClientChannelInfo>> groupChannelTable =
         new HashMap<String, HashMap<Channel, ClientChannelInfo>>();
     private PositiveAtomicCounter positiveAtomicCounter = new PositiveAtomicCounter();
     public ProducerManager() {
     }
 
+    // 返回 groupChannelTable 的拷贝，不能直接返回
     public HashMap<String, HashMap<Channel, ClientChannelInfo>> getGroupChannelTable() {
         HashMap<String /* group name */, HashMap<Channel, ClientChannelInfo>> newGroupChannelTable =
             new HashMap<String, HashMap<Channel, ClientChannelInfo>>();
@@ -64,13 +66,14 @@ public class ProducerManager {
         return newGroupChannelTable;
     }
 
+    // 监控不活跃的 Channel
     public void scanNotActiveChannel() {
         try {
             if (this.groupChannelLock.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     for (final Map.Entry<String, HashMap<Channel, ClientChannelInfo>> entry : this.groupChannelTable
                         .entrySet()) {
-                        final String group = entry.getKey();
+                        final String group = entry.getKey();  // producer group name
                         final HashMap<Channel, ClientChannelInfo> chlMap = entry.getValue();
 
                         Iterator<Entry<Channel, ClientChannelInfo>> it = chlMap.entrySet().iterator();
@@ -78,7 +81,8 @@ public class ProducerManager {
                             Entry<Channel, ClientChannelInfo> item = it.next();
                             // final Integer id = item.getKey();
                             final ClientChannelInfo info = item.getValue();
-
+                            
+                            // 当前时间 - 上次更新时间
                             long diff = System.currentTimeMillis() - info.getLastUpdateTimestamp();
                             if (diff > CHANNEL_EXPIRED_TIMEOUT) {
                                 it.remove();
@@ -100,6 +104,7 @@ public class ProducerManager {
         }
     }
 
+    // Channel 关闭的时候，remove 对应 channel 的 pair
     public void doChannelCloseEvent(final String remoteAddr, final Channel channel) {
         if (channel != null) {
             try {
@@ -131,12 +136,14 @@ public class ProducerManager {
         }
     }
 
+    // 注册生产者
     public void registerProducer(final String group, final ClientChannelInfo clientChannelInfo) {
         try {
             ClientChannelInfo clientChannelInfoFound = null;
 
             if (this.groupChannelLock.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
+                    // getOrCreate
                     HashMap<Channel, ClientChannelInfo> channelTable = this.groupChannelTable.get(group);
                     if (null == channelTable) {
                         channelTable = new HashMap<>();
@@ -144,6 +151,7 @@ public class ProducerManager {
                     }
 
                     clientChannelInfoFound = channelTable.get(clientChannelInfo.getChannel());
+                    // getOrCreate
                     if (null == clientChannelInfoFound) {
                         channelTable.put(clientChannelInfo.getChannel(), clientChannelInfo);
                         log.info("new producer connected, group: {} channel: {}", group,
@@ -153,6 +161,7 @@ public class ProducerManager {
                     this.groupChannelLock.unlock();
                 }
 
+                // 如果之前该 Channel 就存在于 group 对应的 map 中，则更新 updateTs
                 if (clientChannelInfoFound != null) {
                     clientChannelInfoFound.setLastUpdateTimestamp(System.currentTimeMillis());
                 }
@@ -164,11 +173,13 @@ public class ProducerManager {
         }
     }
 
+    // 注销生产者
     public void unregisterProducer(final String group, final ClientChannelInfo clientChannelInfo) {
         try {
             if (this.groupChannelLock.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     HashMap<Channel, ClientChannelInfo> channelTable = this.groupChannelTable.get(group);
+                    // 还是一样的，两段删除，先删除内层的 pair，删除之后如果集合 size = 0，再删除外层 pair
                     if (null != channelTable && !channelTable.isEmpty()) {
                         ClientChannelInfo old = channelTable.remove(clientChannelInfo.getChannel());
                         if (old != null) {
@@ -192,6 +203,7 @@ public class ProducerManager {
         }
     }
 
+    // 获取可获得的 Channel
     public Channel getAvaliableChannel(String groupId) {
         HashMap<Channel, ClientChannelInfo> channelClientChannelInfoHashMap = groupChannelTable.get(groupId);
         List<Channel> channelList = new ArrayList<Channel>();
@@ -204,7 +216,8 @@ public class ProducerManager {
                 log.warn("Channel list is empty. groupId={}", groupId);
                 return null;
             }
-
+            
+            // 这里只 incrementAndGet 一次，后面重试都是本地 ++
             int index = positiveAtomicCounter.incrementAndGet() % size;
             Channel channel = channelList.get(index);
             int count = 0;

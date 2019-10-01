@@ -18,6 +18,7 @@ package org.apache.rocketmq.broker.util;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+// 正数 AtomicInteger，因为 MASK 开头是 7，二进制为 0111
 public class PositiveAtomicCounter {
     private static final int MASK = 0x7FFFFFFF;
     private final AtomicInteger atom;

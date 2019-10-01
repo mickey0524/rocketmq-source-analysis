@@ -15,29 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.broker.filtersrv;
+package org.apache.rocketmq.filter;
 
+import org.apache.rocketmq.common.filter.ExpressionType;
+import org.apache.rocketmq.filter.expression.Expression;
+import org.apache.rocketmq.filter.expression.MQFilterException;
+import org.apache.rocketmq.filter.parser.SelectorParser;
 
-import org.apache.rocketmq.logging.InternalLogger;
+/**
+ * SQL92 Filter, just a wrapper of {@link org.apache.rocketmq.filter.parser.SelectorParser}.
+ * <p/>
+ * <p>
+ * Do not use this filter directly.Use {@link FilterFactory#get} to select a filter.
+ * </p>
+ */
+public class SqlFilter implements FilterSpi {
 
-public class FilterServerUtil {
-    // execute shell
-    public static void callShell(final String shellString, final InternalLogger log) {
-        Process process = null;
-        try {
-            String[] cmdArray = splitShellString(shellString);
-            process = Runtime.getRuntime().exec(cmdArray);
-            process.waitFor();
-            log.info("CallShell: <{}> OK", shellString);
-        } catch (Throwable e) {
-            log.error("CallShell: readLine IOException, {}", shellString, e);
-        } finally {
-            if (null != process)
-                process.destroy();
-        }
+    @Override
+    public Expression compile(final String expr) throws MQFilterException {
+        return SelectorParser.parse(expr);
     }
 
-    private static String[] splitShellString(final String shellString) {
-        return shellString.split(" ");
+    @Override
+    public String ofType() {
+        return ExpressionType.SQL92;
     }
 }
