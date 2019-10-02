@@ -87,7 +87,7 @@ public class BrokerOuterAPI {
         this.brokerOuterExecutor.shutdown();
     }
 
-    // 获得 Namesrv 的地址
+    // 从地址服务器获得 Namesrv 的地址
     public String fetchNameServerAddr() {
         try {
             String addrs = this.topAddressing.fetchNSAddr();

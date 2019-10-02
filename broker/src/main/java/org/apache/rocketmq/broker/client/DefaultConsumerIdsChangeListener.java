@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 
+// 默认的 ConsumerIdsChangeListener
 public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListener {
     private final BrokerController brokerController;
 

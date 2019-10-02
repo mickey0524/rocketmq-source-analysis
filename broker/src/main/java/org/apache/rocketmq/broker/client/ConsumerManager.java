@@ -33,6 +33,7 @@ import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 
+// 管理消费者分组信息
 public class ConsumerManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final long CHANNEL_EXPIRED_TIMEOUT = 1000 * 120;
@@ -44,6 +45,7 @@ public class ConsumerManager {
         this.consumerIdsChangeListener = consumerIdsChangeListener;
     }
 
+    // 寻找指定 group 中指定 clientId 对应的 ClientChannelInfo
     public ClientChannelInfo findChannel(final String group, final String clientId) {
         ConsumerGroupInfo consumerGroupInfo = this.consumerTable.get(group);
         if (consumerGroupInfo != null) {
@@ -52,6 +54,7 @@ public class ConsumerManager {
         return null;
     }
 
+    // 寻找指定 group 中指定 topic 对应的 SubscriptionData
     public SubscriptionData findSubscriptionData(final String group, final String topic) {
         ConsumerGroupInfo consumerGroupInfo = this.getConsumerGroupInfo(group);
         if (consumerGroupInfo != null) {
@@ -61,10 +64,12 @@ public class ConsumerManager {
         return null;
     }
 
+    // 获取指定 group 对应的 ConsumerGroupInfo
     public ConsumerGroupInfo getConsumerGroupInfo(final String group) {
         return this.consumerTable.get(group);
     }
 
+    // 获取指定 group 订阅的数量
     public int findSubscriptionDataCount(final String group) {
         ConsumerGroupInfo consumerGroupInfo = this.getConsumerGroupInfo(group);
         if (consumerGroupInfo != null) {
@@ -74,6 +79,7 @@ public class ConsumerManager {
         return 0;
     }
 
+    // Channel close 的 handler
     public void doChannelCloseEvent(final String remoteAddr, final Channel channel) {
         Iterator<Entry<String, ConsumerGroupInfo>> it = this.consumerTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -86,15 +92,18 @@ public class ConsumerManager {
                     if (remove != null) {
                         log.info("unregister consumer ok, no any connection, and remove consumer group, {}",
                             next.getKey());
+                        // trigger unregister
                         this.consumerIdsChangeListener.handle(ConsumerGroupEvent.UNREGISTER, next.getKey());
                     }
                 }
-
+                
+                // trigger change
                 this.consumerIdsChangeListener.handle(ConsumerGroupEvent.CHANGE, next.getKey(), info.getAllChannel());
             }
         }
     }
 
+    // 注册 consumer
     public boolean registerConsumer(final String group, final ClientChannelInfo clientChannelInfo,
         ConsumeType consumeType, MessageModel messageModel, ConsumeFromWhere consumeFromWhere,
         final Set<SubscriptionData> subList, boolean isNotifyConsumerIdsChangedEnable) {
@@ -106,17 +115,21 @@ public class ConsumerManager {
             consumerGroupInfo = prev != null ? prev : tmp;
         }
 
+        // 更新 channel table
         boolean r1 =
             consumerGroupInfo.updateChannel(clientChannelInfo, consumeType, messageModel,
                 consumeFromWhere);
+        // 更新 subscription table
         boolean r2 = consumerGroupInfo.updateSubscription(subList);
 
         if (r1 || r2) {
+            // trigger change
             if (isNotifyConsumerIdsChangedEnable) {
                 this.consumerIdsChangeListener.handle(ConsumerGroupEvent.CHANGE, group, consumerGroupInfo.getAllChannel());
             }
         }
 
+        // trigger register
         this.consumerIdsChangeListener.handle(ConsumerGroupEvent.REGISTER, group, subList);
 
         return r1 || r2;
@@ -131,16 +144,18 @@ public class ConsumerManager {
                 ConsumerGroupInfo remove = this.consumerTable.remove(group);
                 if (remove != null) {
                     log.info("unregister consumer ok, no any connection, and remove consumer group, {}", group);
-
+                    // trigger unregister
                     this.consumerIdsChangeListener.handle(ConsumerGroupEvent.UNREGISTER, group);
                 }
             }
             if (isNotifyConsumerIdsChangedEnable) {
+                // trigger change
                 this.consumerIdsChangeListener.handle(ConsumerGroupEvent.CHANGE, group, consumerGroupInfo.getAllChannel());
             }
         }
     }
 
+    // 监控不活跃的 Channel
     public void scanNotActiveChannel() {
         Iterator<Entry<String, ConsumerGroupInfo>> it = this.consumerTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -173,6 +188,7 @@ public class ConsumerManager {
         }
     }
 
+    // 查询 topic 被哪些 consumer group 消费
     public HashSet<String> queryTopicConsumeByWho(final String topic) {
         HashSet<String> groups = new HashSet<>();
         Iterator<Entry<String, ConsumerGroupInfo>> it = this.consumerTable.entrySet().iterator();

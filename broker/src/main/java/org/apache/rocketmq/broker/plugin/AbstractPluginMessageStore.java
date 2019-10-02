@@ -32,6 +32,8 @@ import org.apache.rocketmq.store.QueryMessageResult;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
+// MessageStorePlugin 的抽象类，其实就是一个装饰器，方法全部转发给嵌套的就行了
+// 抽象类的子类可以重写方法
 public abstract class AbstractPluginMessageStore implements MessageStore {
     protected MessageStore next = null;
     protected MessageStorePluginContext context;

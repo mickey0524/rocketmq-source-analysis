@@ -62,6 +62,7 @@ public class ServiceProvider {
         }
     }
 
+    // 获得类加载器，getClassLoader
     protected static ClassLoader getClassLoader(Class<?> clazz) {
         try {
             return clazz.getClassLoader();
@@ -72,6 +73,7 @@ public class ServiceProvider {
         }
     }
 
+    // 获取当前线程上下文的类加载器
     protected static ClassLoader getContextClassLoader() {
         ClassLoader classLoader = null;
         try {
@@ -86,6 +88,7 @@ public class ServiceProvider {
         return classLoader;
     }
 
+    // 加载资源，优先使用传入的 ClassLoader
     protected static InputStream getResourceAsStream(ClassLoader loader, String name) {
         if (loader != null) {
             return loader.getResourceAsStream(name);
@@ -98,7 +101,7 @@ public class ServiceProvider {
         LOG.info("Looking for a resource file of name [{}] ...", name);
         List<T> services = new ArrayList<T>();
         try {
-            ArrayList<String> names = new ArrayList<String>();
+            ArrayList<String> names = new ArrayList<String>();  // 这个为啥不用 Set，下面使用了 contains
             final InputStream is = getResourceAsStream(getContextClassLoader(), name);
             if (is != null) {
                 BufferedReader reader;
@@ -163,6 +166,7 @@ public class ServiceProvider {
                 try {
                     // Warning: must typecast here & allow exception to be generated/caught & recast properly
                     serviceClazz = classLoader.loadClass(serviceName);
+                    // 比对是否是相同的类
                     if (clazz.isAssignableFrom(serviceClazz)) {
                         LOG.info("Loaded class {} from classloader {}", serviceClazz.getName(),
                             objectId(classLoader));
@@ -173,7 +177,7 @@ public class ServiceProvider {
                             new Object[] {serviceClazz.getName(),
                                 objectId(serviceClazz.getClassLoader()), clazz.getName()});
                     }
-                    return (T)serviceClazz.newInstance();
+                    return (T)serviceClazz.newInstance();  // 返回类的 instance
                 } catch (ClassNotFoundException ex) {
                     if (classLoader == thisClassLoader) {
                         // Nothing more to try, onwards.

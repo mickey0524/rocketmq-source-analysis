@@ -27,6 +27,7 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.ChannelEventListener;
 
+// ClientHousekeepingService 实现了 ChannelEventListener 接口
 public class ClientHousekeepingService implements ChannelEventListener {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final BrokerController brokerController;
@@ -52,6 +53,7 @@ public class ClientHousekeepingService implements ChannelEventListener {
         }, 1000 * 10, 1000 * 10, TimeUnit.MILLISECONDS);
     }
 
+    // 监控异常的 Channel
     private void scanExceptionChannel() {
         this.brokerController.getProducerManager().scanNotActiveChannel();
         this.brokerController.getConsumerManager().scanNotActiveChannel();
@@ -67,6 +69,7 @@ public class ClientHousekeepingService implements ChannelEventListener {
 
     }
 
+    // 当 channel close exception idle 的时候，调用三个 manager 的 doChannelCloseEvent 方法
     @Override
     public void onChannelClose(String remoteAddr, Channel channel) {
         this.brokerController.getProducerManager().doChannelCloseEvent(remoteAddr, channel);

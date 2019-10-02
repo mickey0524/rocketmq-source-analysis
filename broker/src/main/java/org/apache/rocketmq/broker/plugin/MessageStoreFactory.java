@@ -21,12 +21,14 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import org.apache.rocketmq.store.MessageStore;
 
+// 装饰器，一层套一层
 public final class MessageStoreFactory {
     public final static MessageStore build(MessageStorePluginContext context, MessageStore messageStore)
         throws IOException {
+        // 获取 messageStore 的 plugin
         String plugin = context.getBrokerConfig().getMessageStorePlugIn();
         if (plugin != null && plugin.trim().length() != 0) {
-            String[] pluginClasses = plugin.split(",");
+            String[] pluginClasses = plugin.split(",");  // 数组中存储的是类名
             for (int i = pluginClasses.length - 1; i >= 0; --i) {
                 String pluginClass = pluginClasses[i];
                 try {

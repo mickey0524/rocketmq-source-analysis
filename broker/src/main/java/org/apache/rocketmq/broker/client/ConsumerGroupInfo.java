@@ -32,9 +32,10 @@ import org.apache.rocketmq.common.protocol.heartbeat.ConsumeType;
 import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 
+// comsuerGroup 的 info
 public class ConsumerGroupInfo {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
-    private final String groupName;
+    private final String groupName;  // consumerGroup 的名字
     private final ConcurrentMap<String/* Topic */, SubscriptionData> subscriptionTable =
         new ConcurrentHashMap<String, SubscriptionData>();
     private final ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable =
@@ -52,6 +53,7 @@ public class ConsumerGroupInfo {
         this.consumeFromWhere = consumeFromWhere;
     }
 
+    // 寻找指定 clientId 的 Channel
     public ClientChannelInfo findChannel(final String clientId) {
         Iterator<Entry<Channel, ClientChannelInfo>> it = this.channelInfoTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -72,6 +74,7 @@ public class ConsumerGroupInfo {
         return channelInfoTable;
     }
 
+    // 获取全部的 Channel
     public List<Channel> getAllChannel() {
         List<Channel> result = new ArrayList<>();
 
@@ -80,6 +83,7 @@ public class ConsumerGroupInfo {
         return result;
     }
 
+    // 获取全部的 clientId
     public List<String> getAllClientId() {
         List<String> result = new ArrayList<>();
 
@@ -94,6 +98,7 @@ public class ConsumerGroupInfo {
         return result;
     }
 
+    // 注销 Channel
     public void unregisterChannel(final ClientChannelInfo clientChannelInfo) {
         ClientChannelInfo old = this.channelInfoTable.remove(clientChannelInfo.getChannel());
         if (old != null) {
@@ -101,6 +106,7 @@ public class ConsumerGroupInfo {
         }
     }
 
+    // Channel 关闭事件的 handler
     public boolean doChannelCloseEvent(final String remoteAddr, final Channel channel) {
         final ClientChannelInfo info = this.channelInfoTable.remove(channel);
         if (info != null) {
@@ -113,6 +119,7 @@ public class ConsumerGroupInfo {
         return false;
     }
 
+    // 更新 Channel
     public boolean updateChannel(final ClientChannelInfo infoNew, ConsumeType consumeType,
         MessageModel messageModel, ConsumeFromWhere consumeFromWhere) {
         boolean updated = false;
@@ -146,6 +153,7 @@ public class ConsumerGroupInfo {
         return updated;
     }
 
+    // 更新订阅
     public boolean updateSubscription(final Set<SubscriptionData> subList) {
         boolean updated = false;
 
@@ -160,6 +168,7 @@ public class ConsumerGroupInfo {
                         sub.toString());
                 }
             } else if (sub.getSubVersion() > old.getSubVersion()) {
+                // 订阅版本号更高
                 if (this.consumeType == ConsumeType.CONSUME_PASSIVELY) {
                     log.info("subscription changed, group: {} OLD: {} NEW: {}",
                         this.groupName,
@@ -185,6 +194,7 @@ public class ConsumerGroupInfo {
                 }
             }
 
+            // topic 没有心跳，remove
             if (!exist) {
                 log.warn("subscription changed, group: {} remove topic {} {}",
                     this.groupName,
@@ -202,10 +212,12 @@ public class ConsumerGroupInfo {
         return updated;
     }
 
+    // 获得订阅的 topic 组成的 key
     public Set<String> getSubscribeTopics() {
         return subscriptionTable.keySet();
     }
 
+    // 获得指定 topic 对应的 SubscriptionData
     public SubscriptionData findSubscriptionData(final String topic) {
         return this.subscriptionTable.get(topic);
     }
