@@ -14,11 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+// 包名 —— 长轮询
 package org.apache.rocketmq.broker.longpolling;
 
 import java.util.ArrayList;
 import java.util.List;
 
+// PullRequest 的一个集合类
 public class ManyPullRequest {
     private final ArrayList<PullRequest> pullRequestList = new ArrayList<>();
 

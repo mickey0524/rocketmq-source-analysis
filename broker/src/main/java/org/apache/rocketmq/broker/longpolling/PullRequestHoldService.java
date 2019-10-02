@@ -31,9 +31,9 @@ import org.apache.rocketmq.store.ConsumeQueueExt;
 
 public class PullRequestHoldService extends ServiceThread {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
-    private static final String TOPIC_QUEUEID_SEPARATOR = "@";
+    private static final String TOPIC_QUEUEID_SEPARATOR = "@";  // topic 和 queueId 的分隔符
     private final BrokerController brokerController;
-    private final SystemClock systemClock = new SystemClock();
+    private final SystemClock systemClock = new SystemClock();  // 提供一个方法，System.currentTimeMillis()
     private ConcurrentMap<String/* topic@queueId */, ManyPullRequest> pullRequestTable =
         new ConcurrentHashMap<String, ManyPullRequest>(1024);
 
@@ -47,6 +47,7 @@ public class PullRequestHoldService extends ServiceThread {
         if (null == mpr) {
             mpr = new ManyPullRequest();
             ManyPullRequest prev = this.pullRequestTable.putIfAbsent(key, mpr);
+            // 双重校验
             if (prev != null) {
                 mpr = prev;
             }
@@ -55,6 +56,7 @@ public class PullRequestHoldService extends ServiceThread {
         mpr.addPullRequest(pullRequest);
     }
 
+    // 生成 pullRequestTable 的 key
     private String buildKey(final String topic, final int queueId) {
         StringBuilder sb = new StringBuilder();
         sb.append(topic);
@@ -68,6 +70,7 @@ public class PullRequestHoldService extends ServiceThread {
         log.info("{} service started", this.getServiceName());
         while (!this.isStopped()) {
             try {
+                // 长轮循 enable
                 if (this.brokerController.getBrokerConfig().isLongPollingEnable()) {
                     this.waitForRunning(5 * 1000);
                 } else {
@@ -88,17 +91,21 @@ public class PullRequestHoldService extends ServiceThread {
         log.info("{} service end", this.getServiceName());
     }
 
+    // 获得服务名
     @Override
     public String getServiceName() {
         return PullRequestHoldService.class.getSimpleName();
     }
 
+    // run 里会循环调用本方法
     private void checkHoldRequest() {
         for (String key : this.pullRequestTable.keySet()) {
             String[] kArray = key.split(TOPIC_QUEUEID_SEPARATOR);
+            // topic queueId
             if (2 == kArray.length) {
                 String topic = kArray[0];
                 int queueId = Integer.parseInt(kArray[1]);
+                // 获取最大的 offset
                 final long offset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
                 try {
                     this.notifyMessageArriving(topic, queueId, offset);
