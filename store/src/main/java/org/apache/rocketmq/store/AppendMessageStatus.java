@@ -19,6 +19,9 @@ package org.apache.rocketmq.store;
 /**
  * When write a message to the commit log, returns code
  */
+/**
+ * 向 commit log 写消息的返回码
+ */
 public enum AppendMessageStatus {
     PUT_OK,
     END_OF_FILE,
