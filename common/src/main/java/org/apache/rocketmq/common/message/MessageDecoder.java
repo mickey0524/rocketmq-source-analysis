@@ -400,10 +400,13 @@ public class MessageDecoder {
     public static Map<String, String> string2messageProperties(final String properties) {
         Map<String, String> map = new HashMap<String, String>();
         if (properties != null) {
+            // 将原始 String 分割为代表 kv 的 String 数组
             String[] items = properties.split(String.valueOf(PROPERTY_SEPARATOR));
             for (String i : items) {
                 String[] nv = i.split(String.valueOf(NAME_VALUE_SEPARATOR));
                 if (2 == nv.length) {
+                    // 0 => key
+                    // 1 => value
                     map.put(nv[0], nv[1]);
                 }
             }

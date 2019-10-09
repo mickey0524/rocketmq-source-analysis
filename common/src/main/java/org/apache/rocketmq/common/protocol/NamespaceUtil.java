@@ -125,11 +125,14 @@ public class NamespaceUtil {
             .toString();
     }
 
+    // 获取资源的命名空间
     public static String getNamespaceFromResource(String resource) {
         if (StringUtils.isEmpty(resource) || isSystemResource(resource)) {
+            // 返回空
             return STRING_BLANK;
         }
         String resourceWithoutRetryAndDLQ = withOutRetryAndDLQ(resource);
+        // 找到命名空间分隔符的下标
         int index = resourceWithoutRetryAndDLQ.indexOf(NAMESPACE_SEPARATOR);
 
         return index > 0 ? resourceWithoutRetryAndDLQ.substring(0, index) : STRING_BLANK;
@@ -139,10 +142,11 @@ public class NamespaceUtil {
         if (StringUtils.isEmpty(originalResource)) {
             return STRING_BLANK;
         }
+        // 如果是 retry 的 topic，过滤掉 prefix 中的 %
         if (isRetryTopic(originalResource)) {
             return originalResource.substring(RETRY_PREFIX_LENGTH);
         }
-
+        // 如果是 dlq 的 topic，过滤掉 prefix 中的 %
         if (isDLQTopic(originalResource)) {
             return originalResource.substring(DLQ_PREFIX_LENGTH);
         }

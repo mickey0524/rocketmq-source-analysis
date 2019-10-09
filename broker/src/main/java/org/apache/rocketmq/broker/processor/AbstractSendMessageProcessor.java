@@ -53,11 +53,13 @@ import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.store.MessageExtBrokerInner;
 
+// 发送消息的 processor 的抽象父类
 public abstract class AbstractSendMessageProcessor implements NettyRequestProcessor {
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 
     protected final static int DLQ_NUMS_PER_GROUP = 1;
     protected final BrokerController brokerController;
+    // 可以使用 ThreadLocalRandom.current() 替代
     protected final Random random = new Random(System.currentTimeMillis());
     protected final SocketAddress storeHost;
     private List<SendMessageHook> sendMessageHookList;
@@ -69,6 +71,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
                 .getNettyServerConfig().getListenPort());
     }
 
+    // 生成 msg 的上下文
     protected SendMessageContext buildMsgContext(ChannelHandlerContext ctx,
         SendMessageRequestHeader requestHeader) {
         if (!this.hasSendMessageHook()) {
@@ -87,6 +90,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         mqtraceContext.setBornTimeStamp(requestHeader.getBornTimestamp());
 
         Map<String, String> properties = MessageDecoder.string2messageProperties(requestHeader.getProperties());
+        // 为啥这里 unique 不用 uuid 呢
         String uniqueKey = properties.get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
         properties.put(MessageConst.PROPERTY_MSG_REGION, this.brokerController.getBrokerConfig().getRegionId());
         properties.put(MessageConst.PROPERTY_TRACE_SWITCH, String.valueOf(this.brokerController.getBrokerConfig().isTraceOn()));
@@ -164,6 +168,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
 
     protected RemotingCommand msgCheck(final ChannelHandlerContext ctx,
         final SendMessageRequestHeader requestHeader, final RemotingCommand response) {
+        // broker 不可写
         if (!PermName.isWriteable(this.brokerController.getBrokerConfig().getBrokerPermission())
             && this.brokerController.getTopicConfigManager().isOrderTopic(requestHeader.getTopic())) {
             response.setCode(ResponseCode.NO_PERMISSION);
@@ -171,6 +176,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
                 + "] sending message is forbidden");
             return response;
         }
+        // topic 不可写
         if (!this.brokerController.getTopicConfigManager().isTopicCanSendMessage(requestHeader.getTopic())) {
             String errorMsg = "the topic[" + requestHeader.getTopic() + "] is conflict with system reserved words.";
             log.warn(errorMsg);
@@ -179,11 +185,13 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             return response;
         }
 
+        // 获取 topic 对应的 topicConfig
         TopicConfig topicConfig =
             this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
         if (null == topicConfig) {
             int topicSysFlag = 0;
             if (requestHeader.isUnitMode()) {
+                // 区分 topic 是否为单元化的
                 if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                     topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
                 } else {
@@ -215,8 +223,10 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             }
         }
 
+        // 往 topic 的指定 queue 写
         int queueIdInt = requestHeader.getQueueId();
         int idValid = Math.max(topicConfig.getWriteQueueNums(), topicConfig.getReadQueueNums());
+        // 不能往这个 queueId 中写
         if (queueIdInt >= idValid) {
             String errorInfo = String.format("request queueId[%d] is illegal, %s Producer: %s",
                 queueIdInt,
@@ -251,9 +261,11 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
 
     public void executeSendMessageHookBefore(final ChannelHandlerContext ctx, final RemotingCommand request,
         SendMessageContext context) {
+        // 如果发送消息的钩子存在，执行
         if (hasSendMessageHook()) {
             for (SendMessageHook hook : this.sendMessageHookList) {
                 try {
+                    // 这里 processRequest 中都执行过...
                     final SendMessageRequestHeader requestHeader = parseRequestHeader(request);
 
                     String namespace = NamespaceUtil.getNamespaceFromResource(requestHeader.getTopic());
@@ -279,6 +291,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         }
     }
 
+    // 客户端 producer 发送的 SEND_MESSAGE 等消息都在这里面解析
     protected SendMessageRequestHeader parseRequestHeader(RemotingCommand request)
         throws RemotingCommandException {
 
@@ -304,6 +317,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         return requestHeader;
     }
 
+    // 发送消息之后，执行钩子函数
     public void executeSendMessageHookAfter(final RemotingCommand response, final SendMessageContext context) {
         if (hasSendMessageHook()) {
             for (SendMessageHook hook : this.sendMessageHookList) {

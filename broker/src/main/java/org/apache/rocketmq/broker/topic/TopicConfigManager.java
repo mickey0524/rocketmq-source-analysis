@@ -185,7 +185,8 @@ public class TopicConfigManager extends ConfigManager {
                                 defaultTopicConfig.setPerm(PermName.PERM_READ | PermName.PERM_WRITE);
                             }
                         }
-
+                        
+                        // defaultTopicConfig 可以被继承
                         if (PermName.isInherited(defaultTopicConfig.getPerm())) {
                             topicConfig = new TopicConfig(topic);
 
@@ -241,7 +242,7 @@ public class TopicConfigManager extends ConfigManager {
         return topicConfig;
     }
 
-    // 和上面相比没有 defaultTopic
+    // 和上面相比没有 defaultTopic，backup 备用方法，不继承，直接设置
     public TopicConfig createTopicInSendMessageBackMethod(
         final String topic,
         final int clientDefaultTopicQueueNums,

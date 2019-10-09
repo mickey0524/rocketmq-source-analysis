@@ -25,6 +25,8 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 /**
  * Use short variable name to speed up FastJson deserialization process.
  */
+// 这个命名太可怕了。。。
+// V1 就是用的 producerGroup
 public class SendMessageRequestHeaderV2 implements CommandCustomHeader {
     @CFNotNull
     private String a; // producerGroup;
@@ -54,6 +56,7 @@ public class SendMessageRequestHeaderV2 implements CommandCustomHeader {
     @CFNullable
     private boolean m; //batch
 
+    // 根据 v2 生成 v1 版本的 requestHeader
     public static SendMessageRequestHeader createSendMessageRequestHeaderV1(final SendMessageRequestHeaderV2 v2) {
         SendMessageRequestHeader v1 = new SendMessageRequestHeader();
         v1.setProducerGroup(v2.a);
