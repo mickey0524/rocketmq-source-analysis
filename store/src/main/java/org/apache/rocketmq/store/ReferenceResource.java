@@ -18,12 +18,14 @@ package org.apache.rocketmq.store;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+// 资源的引用计数
 public abstract class ReferenceResource {
-    protected final AtomicLong refCount = new AtomicLong(1);
-    protected volatile boolean available = true;
+    protected final AtomicLong refCount = new AtomicLong(1);  // 用 refCount 做对象的引用计数
+    protected volatile boolean available = true;  // available 判断对象是否可以被获取
     protected volatile boolean cleanupOver = false;
     private volatile long firstShutdownTimestamp = 0;
 
+    // 所有者持有资源，相当于引用计数 + 1
     public synchronized boolean hold() {
         if (this.isAvailable()) {
             if (this.refCount.getAndIncrement() > 0) {
@@ -53,6 +55,7 @@ public abstract class ReferenceResource {
         }
     }
 
+    // 对资源的引用计数释放到 0，则启动 cleanup 做资源清理
     public void release() {
         long value = this.refCount.decrementAndGet();
         if (value > 0)

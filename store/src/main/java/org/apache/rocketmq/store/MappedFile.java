@@ -287,7 +287,7 @@ public class MappedFile extends ReferenceResource {
                 int value = getReadPosition();
 
                 try {
-                    //We only append data to fileChannel or mappedByteBuffer, never both.
+                    // We only append data to fileChannel or mappedByteBuffer, never both.
                     // 数据要么被 append 到 fileChannel，要么 mappedByteBuffer，不会到两个
                     if (writeBuffer != null || this.fileChannel.position() != 0) {
                         this.fileChannel.force(false);
@@ -324,7 +324,7 @@ public class MappedFile extends ReferenceResource {
         }
 
         // All dirty data has been committed to FileChannel.
-        // 所有的数据 commit 到 FileChannel 了
+        // 所有的数据 commit 到 FileChannel 了，committedPosition == fileSize 了，不需要 writeBuffer 了
         if (writeBuffer != null && this.transientStorePool != null && this.fileSize == this.committedPosition.get()) {
             this.transientStorePool.returnBuffer(writeBuffer);
             this.writeBuffer = null;
@@ -396,6 +396,7 @@ public class MappedFile extends ReferenceResource {
         return this.fileSize == this.wrotePosition.get();
     }
 
+    // 本方法给出 size
     public SelectMappedBufferResult selectMappedBuffer(int pos, int size) {
         int readPosition = getReadPosition();
         if ((pos + size) <= readPosition) {
@@ -417,6 +418,7 @@ public class MappedFile extends ReferenceResource {
         return null;
     }
 
+    // 本方法的 size = readPosition - pos
     public SelectMappedBufferResult selectMappedBuffer(int pos) {
         int readPosition = getReadPosition();
         if (pos < readPosition && pos >= 0) {
@@ -435,18 +437,21 @@ public class MappedFile extends ReferenceResource {
 
     @Override
     public boolean cleanup(final long currentRef) {
+        // 还没有 shutdown，不能 cleanup
         if (this.isAvailable()) {
             log.error("this file[REF:" + currentRef + "] " + this.fileName
                 + " have not shutdown, stop unmapping.");
             return false;
         }
 
+        // 已经清理过了
         if (this.isCleanupOver()) {
             log.error("this file[REF:" + currentRef + "] " + this.fileName
                 + " have cleanup, do not do it again.");
             return true;
         }
 
+        // 清理申请的内存
         clean(this.mappedByteBuffer);
         TOTAL_MAPPED_VIRTUAL_MEMORY.addAndGet(this.fileSize * (-1));
         TOTAL_MAPPED_FILES.decrementAndGet();
@@ -459,6 +464,7 @@ public class MappedFile extends ReferenceResource {
 
         if (this.isCleanupOver()) {
             try {
+                // 关闭 fileChannel
                 this.fileChannel.close();
                 log.info("close file channel " + this.fileName + " OK");
 
@@ -492,7 +498,8 @@ public class MappedFile extends ReferenceResource {
     /**
      * @return The max position which have valid data
      */
-    // 返回有效数据的最大位置
+    // 返回有效数据的最大位置，如果 writeBuffer 不为 null 的时候，说明还有数据没有 commit
+    // 因此有效数据只能算到 committedPosition
     public int getReadPosition() {
         return this.writeBuffer == null ? this.wrotePosition.get() : this.committedPosition.get();
     }
@@ -501,16 +508,22 @@ public class MappedFile extends ReferenceResource {
         this.committedPosition.set(pos);
     }
 
+    // 所谓预热，就是把超过设定大小（默认 1G）的文件，每间隔 4K（内存分页的大小）写一个 byte
+    // 累积到一定量（16M）的时候，做刷盘动作 (数据真正的落在本地磁盘)
     public void warmMappedFile(FlushDiskType type, int pages) {
         long beginTime = System.currentTimeMillis();
+        // 所谓 slice, 可以理解为 bytebuffer 中剩余容量的一个快照
+        // 比如原来 bytebuffer 长度为 1024，还有 512 字节容量，则新的 bytebuffer 的 pos就是 512，limit 就是 1024
         ByteBuffer byteBuffer = this.mappedByteBuffer.slice();
         int flush = 0;
         long time = System.currentTimeMillis();
         for (int i = 0, j = 0; i < this.fileSize; i += MappedFile.OS_PAGE_SIZE, j++) {
             byteBuffer.put(i, (byte) 0);
             // force flush when flush disk type is sync
+            // 同步刷盘
             if (type == FlushDiskType.SYNC_FLUSH) {
                 if ((i / OS_PAGE_SIZE) - (flush / OS_PAGE_SIZE) >= pages) {
+                    // 默认是 16M 做一次强制刷盘
                     flush = i;
                     mappedByteBuffer.force();
                 }
