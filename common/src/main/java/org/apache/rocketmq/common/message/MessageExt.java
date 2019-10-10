@@ -29,8 +29,8 @@ public class MessageExt extends Message {
 
     private int storeSize;
 
-    private long queueOffset;
-    private int sysFlag;
+    private long queueOffset;  // 标明消息位于 queue 的 offset
+    private int sysFlag;  // 标明是否事务处理等
     private long bornTimestamp;
     private SocketAddress bornHost;
 
@@ -39,7 +39,9 @@ public class MessageExt extends Message {
     private String msgId;
     private long commitLogOffset;
     private int bodyCRC;
-    private int reconsumeTimes;
+    // 消息被打回后，在 SendMessageProcessor.consumerSendMsgBack 自增
+    // Commitlog 文件中的消息存储中有个字段代表重复消费的次数
+    private int reconsumeTimes;  // 该条消息重复消费的次数
 
     private long preparedTransactionOffset;
 
@@ -58,17 +60,18 @@ public class MessageExt extends Message {
 
     public static TopicFilterType parseTopicFilterType(final int sysFlag) {
         if ((sysFlag & MessageSysFlag.MULTI_TAGS_FLAG) == MessageSysFlag.MULTI_TAGS_FLAG) {
-            return TopicFilterType.MULTI_TAG;
+            return TopicFilterType.MULTI_TAG;  // 多 tag
         }
 
-        return TopicFilterType.SINGLE_TAG;
+        return TopicFilterType.SINGLE_TAG;  // 单 tag
     }
 
+    // socketAddress => byteBuffer
     public static ByteBuffer socketAddress2ByteBuffer(final SocketAddress socketAddress, final ByteBuffer byteBuffer) {
         InetSocketAddress inetSocketAddress = (InetSocketAddress) socketAddress;
         byteBuffer.put(inetSocketAddress.getAddress().getAddress(), 0, 4);
         byteBuffer.putInt(inetSocketAddress.getPort());
-        byteBuffer.flip();
+        byteBuffer.flip();  // 切换读写
         return byteBuffer;
     }
 
@@ -117,6 +120,8 @@ public class MessageExt extends Message {
         this.bornHost = bornHost;
     }
 
+    // 获取生成消息的 host String
+    // 对应下一个函数，这个就应该写 getBornHostAddrString()...
     public String getBornHostString() {
         if (this.bornHost != null) {
             InetSocketAddress inetSocketAddress = (InetSocketAddress) this.bornHost;

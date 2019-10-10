@@ -16,6 +16,7 @@
  */
 package org.apache.rocketmq.common;
 
+// 其实取名为 Tuple2 更好
 public class Pair<T1, T2> {
     private T1 object1;
     private T2 object2;

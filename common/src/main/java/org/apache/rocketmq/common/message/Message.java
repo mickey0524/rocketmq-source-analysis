@@ -22,13 +22,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+// 消息类
 public class Message implements Serializable {
     private static final long serialVersionUID = 8445773977080406428L;
 
-    private String topic;
+    private String topic;  // 消息属于的 topic
     private int flag;
     private Map<String, String> properties;
-    private byte[] body;
+    private byte[] body;  // 消息的主体
     private String transactionId;
 
     public Message() {
@@ -60,10 +61,12 @@ public class Message implements Serializable {
         this(topic, tags, keys, 0, body, true);
     }
 
+    // put keys
     public void setKeys(String keys) {
         this.putProperty(MessageConst.PROPERTY_KEYS, keys);
     }
 
+    // 设置 property
     void putProperty(final String name, final String value) {
         if (null == this.properties) {
             this.properties = new HashMap<String, String>();
@@ -72,13 +75,16 @@ public class Message implements Serializable {
         this.properties.put(name, value);
     }
 
+    // remove key
     void clearProperty(final String name) {
         if (null != this.properties) {
             this.properties.remove(name);
         }
     }
 
+    // put 用户定义的 key
     public void putUserProperty(final String name, final String value) {
+        // name 被系统使用
         if (MessageConst.STRING_HASH_SET.contains(name)) {
             throw new RuntimeException(String.format(
                 "The Property<%s> is used by system, input another please", name));
@@ -126,6 +132,7 @@ public class Message implements Serializable {
         return this.getProperty(MessageConst.PROPERTY_KEYS);
     }
 
+    // 传入一个集合
     public void setKeys(Collection<String> keys) {
         StringBuffer sb = new StringBuffer();
         for (String k : keys) {

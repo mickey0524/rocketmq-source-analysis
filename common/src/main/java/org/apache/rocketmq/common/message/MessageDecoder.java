@@ -381,6 +381,7 @@ public class MessageDecoder {
         return msgExts;
     }
 
+    // 将 Map 序列化为 String
     public static String messageProperties2String(Map<String, String> properties) {
         StringBuilder sb = new StringBuilder();
         if (properties != null) {
@@ -397,6 +398,7 @@ public class MessageDecoder {
         return sb.toString();
     }
 
+    // 将 String 转为 Map
     public static Map<String, String> string2messageProperties(final String properties) {
         Map<String, String> map = new HashMap<String, String>();
         if (properties != null) {
@@ -415,8 +417,9 @@ public class MessageDecoder {
         return map;
     }
 
+    // 将消息序列化为 byte 数组
     public static byte[] encodeMessage(Message message) {
-        //only need flag, body, properties
+        // 仅仅需要 flag，body，properties
         byte[] body = message.getBody();
         int bodyLen = body.length;
         String properties = messageProperties2String(message.getProperties());
@@ -430,9 +433,9 @@ public class MessageDecoder {
             + 4 // 4 FLAG
             + 4 + bodyLen // 4 BODY
             + 2 + propertiesLength;
-        ByteBuffer byteBuffer = ByteBuffer.allocate(storeSize);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(storeSize);  // 分配一个 storeSize 大小的 ByteBuffer
         // 1 TOTALSIZE
-        byteBuffer.putInt(storeSize);
+        byteBuffer.putInt(storeSize);  // 4 个字节
 
         // 2 MAGICCODE
         byteBuffer.putInt(0);
@@ -449,7 +452,7 @@ public class MessageDecoder {
         byteBuffer.put(body);
 
         // 6 properties
-        byteBuffer.putShort(propertiesLength);
+        byteBuffer.putShort(propertiesLength);  // short 两个字节
         byteBuffer.put(propertiesBytes);
 
         return byteBuffer.array();
@@ -486,6 +489,7 @@ public class MessageDecoder {
         return message;
     }
 
+    // 将 message List 序列化为一个 byte 数组
     public static byte[] encodeMessages(List<Message> messages) {
         //TO DO refactor, accumulate in one buffer, avoid copies
         List<byte[]> encodedMessages = new ArrayList<byte[]>(messages.size());

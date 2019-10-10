@@ -22,6 +22,7 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
+// 服务线程抽象类
 public abstract class ServiceThread implements Runnable {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 
@@ -30,8 +31,8 @@ public abstract class ServiceThread implements Runnable {
     private Thread thread;
     protected final CountDownLatch2 waitPoint = new CountDownLatch2(1);
     protected volatile AtomicBoolean hasNotified = new AtomicBoolean(false);
-    protected volatile boolean stopped = false;
-    protected boolean isDaemon = false;
+    protected volatile boolean stopped = false;  // 是否停止
+    protected boolean isDaemon = false;  // 是否为常驻线程
 
     //Make it able to restart the thread
     private final AtomicBoolean started = new AtomicBoolean(false);
@@ -42,6 +43,7 @@ public abstract class ServiceThread implements Runnable {
 
     public abstract String getServiceName();
 
+    // 创建一个 Thread 实例，然后启动
     public void start() {
         log.info("Try to start service thread:{} started:{} lastThread:{}", getServiceName(), started.get(), thread);
         if (!started.compareAndSet(false, true)) {
@@ -70,6 +72,7 @@ public abstract class ServiceThread implements Runnable {
         }
 
         try {
+            // 中止
             if (interrupt) {
                 this.thread.interrupt();
             }

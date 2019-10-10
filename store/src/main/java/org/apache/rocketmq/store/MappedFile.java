@@ -530,6 +530,7 @@ public class MappedFile extends ReferenceResource {
             }
 
             // prevent gc
+            // 防止 gc
             if (j % 1000 == 0) {
                 log.info("j={}, costTime={}", j, System.currentTimeMillis() - time);
                 time = System.currentTimeMillis();

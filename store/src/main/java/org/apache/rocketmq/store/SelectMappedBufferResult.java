@@ -18,15 +18,16 @@ package org.apache.rocketmq.store;
 
 import java.nio.ByteBuffer;
 
+// selectMappedBuffer 方法的返回值
 public class SelectMappedBufferResult {
 
-    private final long startOffset;
+    private final long startOffset;  // 开始的 offset
 
-    private final ByteBuffer byteBuffer;
+    private final ByteBuffer byteBuffer;  // ByteBuffer
 
-    private int size;
+    private int size;  // 长度
 
-    private MappedFile mappedFile;
+    private MappedFile mappedFile;  // 对应的 MappedFile
 
     public SelectMappedBufferResult(long startOffset, ByteBuffer byteBuffer, int size, MappedFile mappedFile) {
         this.startOffset = startOffset;

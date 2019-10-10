@@ -464,12 +464,14 @@ public class MappedFileQueue {
         return deleteCount;
     }
 
+    // flushLeastPages 指代一次最少刷几个分页
     public boolean flush(final int flushLeastPages) {
         boolean result = true;
         MappedFile mappedFile = this.findMappedFileByOffset(this.flushedWhere, this.flushedWhere == 0);
         if (mappedFile != null) {
             long tmpTimeStamp = mappedFile.getStoreTimestamp();
             int offset = mappedFile.flush(flushLeastPages);
+            // 刷盘处理以后，where 就变成了已经刷盘到哪儿的位置
             long where = mappedFile.getFileFromOffset() + offset;
             result = where == this.flushedWhere;
             this.flushedWhere = where;
@@ -481,6 +483,7 @@ public class MappedFileQueue {
         return result;
     }
 
+    // commitLeastPages 指代一次最少 commit 多少个 4k
     public boolean commit(final int commitLeastPages) {
         boolean result = true;
         MappedFile mappedFile = this.findMappedFileByOffset(this.committedWhere, this.committedWhere == 0);
@@ -501,11 +504,14 @@ public class MappedFileQueue {
      * @param returnFirstOnNotFound If the mapped file is not found, then return the first one.
      * @return Mapped file or null (when not found and returnFirstOnNotFound is <code>false</code>).
      */
+    // 根据 offset 来寻找一个 mapped 文件
     public MappedFile findMappedFileByOffset(final long offset, final boolean returnFirstOnNotFound) {
         try {
+            // 获得 List 的第一个和最后一个 MappedFile
             MappedFile firstMappedFile = this.getFirstMappedFile();
             MappedFile lastMappedFile = this.getLastMappedFile();
             if (firstMappedFile != null && lastMappedFile != null) {
+                // offset 小于最小值，offset 大于最大值
                 if (offset < firstMappedFile.getFileFromOffset() || offset >= lastMappedFile.getFileFromOffset() + this.mappedFileSize) {
                     LOG_ERROR.warn("Offset not matched. Request offset: {}, firstOffset: {}, lastOffset: {}, mappedFileSize: {}, mappedFiles count: {}",
                         offset,
@@ -514,6 +520,7 @@ public class MappedFileQueue {
                         this.mappedFileSize,
                         this.mappedFiles.size());
                 } else {
+                    // 获取下标
                     int index = (int) ((offset / this.mappedFileSize) - (firstMappedFile.getFileFromOffset() / this.mappedFileSize));
                     MappedFile targetFile = null;
                     try {
@@ -525,7 +532,8 @@ public class MappedFileQueue {
                         && offset < targetFile.getFileFromOffset() + this.mappedFileSize) {
                         return targetFile;
                     }
-
+                    
+                    // 最后遍历 hack 一下
                     for (MappedFile tmpMappedFile : this.mappedFiles) {
                         if (offset >= tmpMappedFile.getFileFromOffset()
                             && offset < tmpMappedFile.getFileFromOffset() + this.mappedFileSize) {
@@ -545,6 +553,7 @@ public class MappedFileQueue {
         return null;
     }
 
+    // 获得第一个 MappedFile
     public MappedFile getFirstMappedFile() {
         MappedFile mappedFileFirst = null;
 
@@ -561,10 +570,12 @@ public class MappedFileQueue {
         return mappedFileFirst;
     }
 
+    // 根据 offset 获得 MapedFile
     public MappedFile findMappedFileByOffset(final long offset) {
         return findMappedFileByOffset(offset, false);
     }
 
+    // 获取分配的内存大小（存活的 MappedFile 的 size 之和）
     public long getMappedMemorySize() {
         long size = 0;
 
@@ -580,6 +591,7 @@ public class MappedFileQueue {
         return size;
     }
 
+    // 重新尝试删除第一个 MappedFile
     public boolean retryDeleteFirstFile(final long intervalForcibly) {
         MappedFile mappedFile = this.getFirstMappedFile();
         if (mappedFile != null) {
@@ -602,12 +614,14 @@ public class MappedFileQueue {
         return false;
     }
 
+    // shutdown，遍历所有的 MappedFile，执行 shutdown 函数
     public void shutdown(final long intervalForcibly) {
         for (MappedFile mf : this.mappedFiles) {
             mf.shutdown(intervalForcibly);
         }
     }
 
+    // destory，遍历所有的 MappedFile，执行 destory 函数
     public void destroy() {
         for (MappedFile mf : this.mappedFiles) {
             mf.destroy(1000 * 3);

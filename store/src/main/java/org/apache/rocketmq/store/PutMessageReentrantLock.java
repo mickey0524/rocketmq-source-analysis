@@ -21,6 +21,9 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Exclusive lock implementation to put message
  */
+/**
+ * 用于 put message 的排他锁
+ */
 public class PutMessageReentrantLock implements PutMessageLock {
     private ReentrantLock putMessageNormalLock = new ReentrantLock(); // NonfairSync
 

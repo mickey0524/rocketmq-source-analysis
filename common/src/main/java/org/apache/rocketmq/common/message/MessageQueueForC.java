@@ -19,6 +19,7 @@ package org.apache.rocketmq.common.message;
 
 import java.io.Serializable;
 
+// 比 MessageQueue 多了 offset
 public class MessageQueueForC implements Comparable<MessageQueueForC>, Serializable {
 
     private static final long serialVersionUID = 5320967846569962104L;

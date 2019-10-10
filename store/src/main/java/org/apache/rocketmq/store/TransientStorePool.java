@@ -38,14 +38,15 @@ public class TransientStorePool {
 
     public TransientStorePool(final MessageStoreConfig storeConfig) {
         this.storeConfig = storeConfig;
-        this.poolSize = storeConfig.getTransientStorePoolSize();
-        this.fileSize = storeConfig.getMappedFileSizeCommitLog();
+        this.poolSize = storeConfig.getTransientStorePoolSize();  // 5
+        this.fileSize = storeConfig.getMappedFileSizeCommitLog(); // 1G
         this.availableBuffers = new ConcurrentLinkedDeque<>();
     }
 
     /**
      * It's a heavy init method.
      */
+    // 初始化 poolSize 个 ByteBuffer
     public void init() {
         for (int i = 0; i < poolSize; i++) {
             ByteBuffer byteBuffer = ByteBuffer.allocateDirect(fileSize);
@@ -66,6 +67,7 @@ public class TransientStorePool {
         }
     }
 
+    // 归还 ByteBuffer
     public void returnBuffer(ByteBuffer byteBuffer) {
         byteBuffer.position(0);
         byteBuffer.limit(fileSize);

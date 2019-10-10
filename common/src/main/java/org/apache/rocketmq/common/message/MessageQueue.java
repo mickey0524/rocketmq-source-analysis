@@ -18,6 +18,7 @@ package org.apache.rocketmq.common.message;
 
 import java.io.Serializable;
 
+// 消息 Queue，brokerName 下的 topic 的 queueId 的 queue
 public class MessageQueue implements Comparable<MessageQueue>, Serializable {
     private static final long serialVersionUID = 6191200464116433425L;
     private String topic;
@@ -97,6 +98,7 @@ public class MessageQueue implements Comparable<MessageQueue>, Serializable {
         return "MessageQueue [topic=" + topic + ", brokerName=" + brokerName + ", queueId=" + queueId + "]";
     }
 
+    // 优先比较 topic，然后是 brokerName，最后是 queueId
     @Override
     public int compareTo(MessageQueue o) {
         {

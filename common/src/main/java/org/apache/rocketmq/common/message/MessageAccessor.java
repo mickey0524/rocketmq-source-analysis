@@ -19,6 +19,7 @@ package org.apache.rocketmq.common.message;
 
 import java.util.Map;
 
+// 消息访问类，其实就是起一个桥接的作用（桥接模式）
 public class MessageAccessor {
 
     public static void clearProperty(final Message msg, final String name) {
@@ -89,6 +90,7 @@ public class MessageAccessor {
         return msg.getProperty(MessageConst.PROPERTY_CONSUME_START_TIMESTAMP);
     }
 
+    // 克隆消息
     public static Message cloneMessage(final Message msg) {
         Message newMsg = new Message(msg.getTopic(), msg.getBody());
         newMsg.setFlag(msg.getFlag());
