@@ -64,7 +64,7 @@ public class MappedFile extends ReferenceResource {
     private File file;  // 文件句柄
     private MappedByteBuffer mappedByteBuffer;  // 映射的内存对象
     private volatile long storeTimestamp = 0;
-    private boolean firstCreateInQueue = false;
+    private boolean firstCreateInQueue = false;  // 是否是 MappedFileQueue 中的第一个 MappedFile
 
     public MappedFile() {
     }
@@ -78,6 +78,7 @@ public class MappedFile extends ReferenceResource {
         init(fileName, fileSize, transientStorePool);
     }
 
+    // 确保目录存在
     public static void ensureDirOK(final String dirName) {
         if (dirName != null) {
             File f = new File(dirName);
@@ -147,25 +148,28 @@ public class MappedFile extends ReferenceResource {
         return TOTAL_MAPPED_VIRTUAL_MEMORY.get();
     }
 
+    // 初始化
     public void init(final String fileName, final int fileSize,
         final TransientStorePool transientStorePool) throws IOException {
         init(fileName, fileSize);
-        this.writeBuffer = transientStorePool.borrowBuffer();
+        this.writeBuffer = transientStorePool.borrowBuffer();  // 有可能返回 null，因为默认的 poolSize 就是 5
         this.transientStorePool = transientStorePool;
     }
 
+    // 初始化
     private void init(final String fileName, final int fileSize) throws IOException {
         this.fileName = fileName;
         this.fileSize = fileSize;
         this.file = new File(fileName);
-        this.fileFromOffset = Long.parseLong(this.file.getName());
+        this.fileFromOffset = Long.parseLong(this.file.getName());  // startOffset 就是文件名
         boolean ok = false;
 
-        ensureDirOK(this.file.getParent());
+        ensureDirOK(this.file.getParent());  // 确保目录存在，这样才能 flush 磁盘
 
         try {
-            this.fileChannel = new RandomAccessFile(this.file, "rw").getChannel();
-            this.mappedByteBuffer = this.fileChannel.map(MapMode.READ_WRITE, 0, fileSize);  // 映射的内存对象
+            this.fileChannel = new RandomAccessFile(this.file, "rw").getChannel();  // fd 的 Channel
+
+            this.mappedByteBuffer = this.fileChannel.map(MapMode.READ_WRITE, 0, fileSize);  // 映射的内存对象，加速文件读写
             TOTAL_MAPPED_VIRTUAL_MEMORY.addAndGet(fileSize);  // JVM 分配更多内存
             TOTAL_MAPPED_FILES.incrementAndGet();  // MappedFile 数量 + 1
             ok = true;
@@ -213,6 +217,7 @@ public class MappedFile extends ReferenceResource {
         if (currentPos < this.fileSize) {
             // 优先 writeBuffer
             ByteBuffer byteBuffer = writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
+            // 这里一定要设置 position，否则会覆盖
             byteBuffer.position(currentPos);
             AppendMessageResult result;
             if (messageExt instanceof MessageExtBrokerInner) {
@@ -340,6 +345,7 @@ public class MappedFile extends ReferenceResource {
 
         if (writePos - this.committedPosition.get() > 0) {
             try {
+                // writeBuffer 和 mappedByteBuffer 大小都是 fileSize，所以这里 slice 之后可以随便设置 position 和 limit
                 ByteBuffer byteBuffer = writeBuffer.slice();
                 byteBuffer.position(lastCommittedPosition);
                 byteBuffer.limit(writePos);

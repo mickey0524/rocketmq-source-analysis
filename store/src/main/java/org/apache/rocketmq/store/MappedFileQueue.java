@@ -193,7 +193,7 @@ public class MappedFileQueue {
         return true;
     }
 
-    // 落后了多少
+    // flush 落后了多少
     public long howMuchFallBehind() {
         if (this.mappedFiles.isEmpty())
             return 0;
@@ -265,6 +265,7 @@ public class MappedFileQueue {
     public MappedFile getLastMappedFile() {
         MappedFile mappedFileLast = null;
 
+        // mappedFiles 是 CopyOnWriteArrayList，所以需要这样写
         while (!this.mappedFiles.isEmpty()) {
             try {
                 mappedFileLast = this.mappedFiles.get(this.mappedFiles.size() - 1);
@@ -433,8 +434,10 @@ public class MappedFileQueue {
             for (int i = 0; i < mfsLength; i++) {
                 boolean destroy;
                 MappedFile mappedFile = (MappedFile) mfs[i];
+                // MappedBuffer 映射着 fileChannel，获取最大的 offset
                 SelectMappedBufferResult result = mappedFile.selectMappedBuffer(this.mappedFileSize - unitSize);
                 if (result != null) {
+                    // 从 fileChannel 中获取内容
                     long maxOffsetInLogicQueue = result.getByteBuffer().getLong();
                     result.release();
                     destroy = maxOffsetInLogicQueue < offset;

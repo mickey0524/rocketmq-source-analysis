@@ -36,6 +36,9 @@ import org.apache.rocketmq.store.config.BrokerRole;
  */
 /**
  * 提前创建 MappedFile
+ * 利用两个数据结构，一个 Map，一个堆
+ * putRequestAndReturnMappedFile 方法申请创建 {@link MappedFile}
+ * mmapOperation 是一个 while 循环，从堆中拿出请求，创建
  */
 public class AllocateMappedFileService extends ServiceThread {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -221,6 +224,7 @@ public class AllocateMappedFileService extends ServiceThread {
             log.warn(this.getServiceName() + " service has exception. ", e);
             this.hasException = true;
             if (null != req) {
+                // 重试
                 requestQueue.offer(req);
                 try {
                     Thread.sleep(1);
@@ -228,6 +232,7 @@ public class AllocateMappedFileService extends ServiceThread {
                 }
             }
         } finally {
+            // countDown，触发 putRequestAndReturnMappedFile 返回 MappedFile
             if (req != null && isSuccess)
                 req.getCountDownLatch().countDown();
         }

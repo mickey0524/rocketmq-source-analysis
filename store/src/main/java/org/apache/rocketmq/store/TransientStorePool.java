@@ -59,6 +59,7 @@ public class TransientStorePool {
         }
     }
 
+    // 回收初始化申请的 ByteBuffer
     public void destroy() {
         for (ByteBuffer byteBuffer : availableBuffers) {
             final long address = ((DirectBuffer) byteBuffer).address();
@@ -74,6 +75,7 @@ public class TransientStorePool {
         this.availableBuffers.offerFirst(byteBuffer);
     }
 
+    // 分配 ByteBuffer
     public ByteBuffer borrowBuffer() {
         ByteBuffer buffer = availableBuffers.pollFirst();
         if (availableBuffers.size() < poolSize * 0.4) {
