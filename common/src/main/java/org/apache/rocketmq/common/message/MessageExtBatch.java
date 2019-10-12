@@ -34,6 +34,7 @@ public class MessageExtBatch extends MessageExt {
         return encodedBuff;
     }
 
+    // 设置编码后的 ByteBuffer
     public void setEncodedBuff(ByteBuffer encodedBuff) {
         this.encodedBuff = encodedBuff;
     }

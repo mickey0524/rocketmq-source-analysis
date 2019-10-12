@@ -56,7 +56,8 @@ public class MessageDecoder {
         + 8 // 12 STOREHOSTADDRESS
         + 4 // 13 RECONSUMETIMES
         + 8; // 14 Prepared Transaction Offset
-
+    
+    // 创建 MessageId
     public static String createMessageId(final ByteBuffer input, final ByteBuffer addr, final long offset) {
         input.flip();
         input.limit(MessageDecoder.MSG_ID_LENGTH);

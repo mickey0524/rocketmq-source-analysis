@@ -18,12 +18,14 @@ package org.apache.rocketmq.store;
 
 import java.util.Map;
 
+// checkMessageAndReturnSize 中构建 DispatchRequest
+// commitLogOffset + msgSize + tagsCode 与 ConsumeQueue 有关
 public class DispatchRequest {
     private final String topic;
     private final int queueId;
-    private final long commitLogOffset;
-    private int msgSize;
-    private final long tagsCode;
+    private final long commitLogOffset;  // commitLogOffset 是指这条消息在 CommitLog 文件中的实际偏移量
+    private int msgSize;  // 存储消息的大小
+    private final long tagsCode;  // 存储消息的 Tag 的哈希值：主要用于订阅时消息过滤（订阅时如果指定了 Tag，会根据 HashCode 来快速查找到订阅的消息）
     private final long storeTimestamp;
     private final long consumeQueueOffset;
     private final String keys;

@@ -23,9 +23,9 @@ package org.apache.rocketmq.store;
  * 向 commit log 写消息的返回码
  */
 public enum AppendMessageStatus {
-    PUT_OK,
-    END_OF_FILE,
-    MESSAGE_SIZE_EXCEEDED,
-    PROPERTIES_SIZE_EXCEEDED,
-    UNKNOWN_ERROR,
+    PUT_OK,  // 成功 Append
+    END_OF_FILE,  // 当前 MapperFile 放不下这条消息，新建一个 MapperFile
+    MESSAGE_SIZE_EXCEEDED,  // 消息大小超过限制
+    PROPERTIES_SIZE_EXCEEDED,  // 消息的 property 大小超出限制
+    UNKNOWN_ERROR,  // 不知道发生了什么，反正就是失败了
 }
