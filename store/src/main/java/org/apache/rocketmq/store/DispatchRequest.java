@@ -27,7 +27,7 @@ public class DispatchRequest {
     private int msgSize;  // 存储消息的大小
     private final long tagsCode;  // 存储消息的 Tag 的哈希值：主要用于订阅时消息过滤（订阅时如果指定了 Tag，会根据 HashCode 来快速查找到订阅的消息）
     private final long storeTimestamp;
-    private final long consumeQueueOffset;
+    private final long consumeQueueOffset;  // Queue 中的逻辑偏移量
     private final String keys;
     private final boolean success;
     private final String uniqKey;
