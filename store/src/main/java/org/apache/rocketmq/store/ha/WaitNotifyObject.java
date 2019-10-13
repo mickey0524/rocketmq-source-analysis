@@ -28,8 +28,9 @@ public class WaitNotifyObject {
     protected final HashMap<Long/* thread id */, Boolean/* notified */> waitingThreadTable =
         new HashMap<Long, Boolean>(16);
 
-    protected volatile boolean hasNotified = false;
+    protected volatile boolean hasNotified = false;  // 用 volatile 修饰
 
+    // notify 一个等待的线程
     public void wakeup() {
         synchronized (this) {
             if (!this.hasNotified) {
@@ -39,6 +40,7 @@ public class WaitNotifyObject {
         }
     }
 
+    // 等待 notify
     protected void waitForRunning(long interval) {
         synchronized (this) {
             if (this.hasNotified) {
@@ -61,6 +63,7 @@ public class WaitNotifyObject {
     protected void onWaitEnd() {
     }
 
+    // 唤醒所有等待的线程
     public void wakeupAll() {
         synchronized (this) {
             boolean needNotify = false;

@@ -56,9 +56,11 @@ public class RemotingUtil {
         return isWindowsPlatform;
     }
 
+    // 打开选择器
     public static Selector openSelector() throws IOException {
         Selector result = null;
 
+        // Linux 下用 EPollSelector
         if (isLinuxPlatform()) {
             try {
                 final Class<?> providerClazz = Class.forName("sun.nio.ch.EPollSelectorProvider");

@@ -36,6 +36,10 @@ import java.util.List;
  * <li>3. Be careful, address returned is always less than 0.</li>
  * <li>4. Pls keep this file small.</li>
  */
+/**
+ * ConsumeQueue 的扩展，用来存储一些不重要的信息
+ * 例如消息的存储时间，过滤的位图等
+ */
 public class ConsumeQueueExt {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 

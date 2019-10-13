@@ -33,7 +33,9 @@ public class HAConnection {
     private final HAService haService;
     private final SocketChannel socketChannel;
     private final String clientAddr;
+    // master 向 slave 写
     private WriteSocketService writeSocketService;
+    // master 从 slave 读
     private ReadSocketService readSocketService;
 
     private volatile long slaveRequestOffset = -1;
@@ -42,15 +44,15 @@ public class HAConnection {
     public HAConnection(final HAService haService, final SocketChannel socketChannel) throws IOException {
         this.haService = haService;
         this.socketChannel = socketChannel;
-        this.clientAddr = this.socketChannel.socket().getRemoteSocketAddress().toString();
+        this.clientAddr = this.socketChannel.socket().getRemoteSocketAddress().toString();  // client 的地址
         this.socketChannel.configureBlocking(false);
         this.socketChannel.socket().setSoLinger(false, -1);
         this.socketChannel.socket().setTcpNoDelay(true);
-        this.socketChannel.socket().setReceiveBufferSize(1024 * 64);
-        this.socketChannel.socket().setSendBufferSize(1024 * 64);
+        this.socketChannel.socket().setReceiveBufferSize(1024 * 64);  // 64k
+        this.socketChannel.socket().setSendBufferSize(1024 * 64);  // 64k
         this.writeSocketService = new WriteSocketService(this.socketChannel);
         this.readSocketService = new ReadSocketService(this.socketChannel);
-        this.haService.getConnectionCount().incrementAndGet();
+        this.haService.getConnectionCount().incrementAndGet();  // 增加 slave 连接的数量
     }
 
     public void start() {
@@ -78,8 +80,9 @@ public class HAConnection {
         return socketChannel;
     }
 
+    // master 从 slave 读
     class ReadSocketService extends ServiceThread {
-        private static final int READ_MAX_BUFFER_SIZE = 1024 * 1024;
+        private static final int READ_MAX_BUFFER_SIZE = 1024 * 1024;  // 1M
         private final Selector selector;
         private final SocketChannel socketChannel;
         private final ByteBuffer byteBufferRead = ByteBuffer.allocate(READ_MAX_BUFFER_SIZE);
@@ -89,8 +92,8 @@ public class HAConnection {
         public ReadSocketService(final SocketChannel socketChannel) throws IOException {
             this.selector = RemotingUtil.openSelector();
             this.socketChannel = socketChannel;
-            this.socketChannel.register(this.selector, SelectionKey.OP_READ);
-            this.setDaemon(true);
+            this.socketChannel.register(this.selector, SelectionKey.OP_READ);  // read channel
+            this.setDaemon(true);  // 设置为常驻线程
         }
 
         @Override
@@ -105,7 +108,7 @@ public class HAConnection {
                         HAConnection.log.error("processReadEvent error");
                         break;
                     }
-
+                    // read 间隔
                     long interval = HAConnection.this.haService.getDefaultMessageStore().getSystemClock().now() - this.lastReadTimestamp;
                     if (interval > HAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig().getHaHousekeepingInterval()) {
                         log.warn("ha housekeeping, found this connection[" + HAConnection.this.clientAddr + "] expired, " + interval);
@@ -116,7 +119,8 @@ public class HAConnection {
                     break;
                 }
             }
-
+            
+            // break 出循环后，进行资源回收
             this.makeStop();
 
             writeSocketService.makeStop();
@@ -127,7 +131,7 @@ public class HAConnection {
 
             SelectionKey sk = this.socketChannel.keyFor(this.selector);
             if (sk != null) {
-                sk.cancel();
+                sk.cancel();  // help gc
             }
 
             try {
@@ -145,8 +149,9 @@ public class HAConnection {
             return ReadSocketService.class.getSimpleName();
         }
 
+        // 处理读事件
         private boolean processReadEvent() {
-            int readSizeZeroTimes = 0;
+            int readSizeZeroTimes = 0;  // 没有读取到任何东西的次数
 
             if (!this.byteBufferRead.hasRemaining()) {
                 this.byteBufferRead.flip();
@@ -157,22 +162,28 @@ public class HAConnection {
                 try {
                     int readSize = this.socketChannel.read(this.byteBufferRead);
                     if (readSize > 0) {
-                        readSizeZeroTimes = 0;
+                        readSizeZeroTimes = 0;  // 读到内容之后，readSizeZeroTimes 复位
                         this.lastReadTimestamp = HAConnection.this.haService.getDefaultMessageStore().getSystemClock().now();
-                        if ((this.byteBufferRead.position() - this.processPosition) >= 8) {
+                        if ((this.byteBufferRead.position() - this.processPosition) >= 8) {  // 应用缓冲区未处理的字节数超过 8
+                            // 这里没有用 netty 的解码器做黏包处理，而是自己做的，从这里的数据处理来看，slave 每次给 master 回的 ack
+                            // offset 就是一个 8 字节的 long 整型变量
+                            // (this.byteBufferRead.position() % 8) 是最后没有读满 8 个字节的几个字节。 pos就是上1个 Long 的最后一个字节
                             int pos = this.byteBufferRead.position() - (this.byteBufferRead.position() % 8);
-                            long readOffset = this.byteBufferRead.getLong(pos - 8);
+                            long readOffset = this.byteBufferRead.getLong(pos - 8);  // ack offset，从上一个8字节的最后一字节开始往前读8字节
                             this.processPosition = pos;
 
                             HAConnection.this.slaveAckOffset = readOffset;
                             if (HAConnection.this.slaveRequestOffset < 0) {
+                                // 初始值是 -1
                                 HAConnection.this.slaveRequestOffset = readOffset;
                                 log.info("slave[" + HAConnection.this.clientAddr + "] request offset " + readOffset);
                             }
 
+                            // 更新 HAService 中的 push2SlaveMaxOffset，通知那些等待主备同步的生产者
                             HAConnection.this.haService.notifyTransferSome(HAConnection.this.slaveAckOffset);
                         }
                     } else if (readSize == 0) {
+                        // 三次没有读取到内容之后，break
                         if (++readSizeZeroTimes >= 3) {
                             break;
                         }
@@ -190,6 +201,7 @@ public class HAConnection {
         }
     }
 
+    // master 向 slave 写
     class WriteSocketService extends ServiceThread {
         private final Selector selector;
         private final SocketChannel socketChannel;
@@ -204,8 +216,8 @@ public class HAConnection {
         public WriteSocketService(final SocketChannel socketChannel) throws IOException {
             this.selector = RemotingUtil.openSelector();
             this.socketChannel = socketChannel;
-            this.socketChannel.register(this.selector, SelectionKey.OP_WRITE);
-            this.setDaemon(true);
+            this.socketChannel.register(this.selector, SelectionKey.OP_WRITE);  // write channel
+            this.setDaemon(true);  // 设置为常驻线程
         }
 
         @Override
@@ -216,6 +228,7 @@ public class HAConnection {
                 try {
                     this.selector.select(1000);
 
+                    // slave 还没有 ack，不写了
                     if (-1 == HAConnection.this.slaveRequestOffset) {
                         Thread.sleep(10);
                         continue;
@@ -223,6 +236,7 @@ public class HAConnection {
 
                     if (-1 == this.nextTransferFromWhere) {
                         if (0 == HAConnection.this.slaveRequestOffset) {
+                            // 比如 mapfile 默认一个G，只要没有写满1G, 其实都是从0 开始同步
                             long masterOffset = HAConnection.this.haService.getDefaultMessageStore().getCommitLog().getMaxOffset();
                             masterOffset =
                                 masterOffset
@@ -232,9 +246,10 @@ public class HAConnection {
                             if (masterOffset < 0) {
                                 masterOffset = 0;
                             }
-
+                            // 获取 CommitLog 的最大 offset
                             this.nextTransferFromWhere = masterOffset;
                         } else {
+                            // 从 slave 收到的指定位点开始传输 CommitLog
                             this.nextTransferFromWhere = HAConnection.this.slaveRequestOffset;
                         }
 
@@ -242,6 +257,7 @@ public class HAConnection {
                             + "], and slave request " + HAConnection.this.slaveRequestOffset);
                     }
 
+                    // 上次是否写完了
                     if (this.lastWriteOver) {
 
                         long interval =
@@ -250,7 +266,7 @@ public class HAConnection {
                         if (interval > HAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig()
                             .getHaSendHeartbeatInterval()) {
 
-                            // Build Header
+                            // Build Header 12 个字节
                             this.byteBufferHeader.position(0);
                             this.byteBufferHeader.limit(headerSize);
                             this.byteBufferHeader.putLong(this.nextTransferFromWhere);
@@ -270,6 +286,7 @@ public class HAConnection {
                     SelectMappedBufferResult selectResult =
                         HAConnection.this.haService.getDefaultMessageStore().getCommitLogData(this.nextTransferFromWhere);
                     if (selectResult != null) {
+                        // 从commitlog指定的位点开始读取数据，写到 channel 中去
                         int size = selectResult.getSize();
                         if (size > HAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig().getHaTransferBatchSize()) {
                             size = HAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig().getHaTransferBatchSize();
@@ -284,14 +301,14 @@ public class HAConnection {
                         // Build Header
                         this.byteBufferHeader.position(0);
                         this.byteBufferHeader.limit(headerSize);
-                        this.byteBufferHeader.putLong(thisOffset);
-                        this.byteBufferHeader.putInt(size);
+                        this.byteBufferHeader.putLong(thisOffset);  // 开始的 offset
+                        this.byteBufferHeader.putInt(size);  // 长度
                         this.byteBufferHeader.flip();
 
                         this.lastWriteOver = this.transferData();
                     } else {
 
-                        HAConnection.this.haService.getWaitNotifyObject().allWaitForRunning(100);
+                        HAConnection.this.haService.getWaitNotifyObject().allWaitForRunning(100);  // 等待
                     }
                 } catch (Exception e) {
 
@@ -300,7 +317,7 @@ public class HAConnection {
                 }
             }
 
-            HAConnection.this.haService.getWaitNotifyObject().removeFromWaitingThreadTable();
+            HAConnection.this.haService.getWaitNotifyObject().removeFromWaitingThreadTable();  // 将本线程从等待 map 中删除
 
             if (this.selectMappedBufferResult != null) {
                 this.selectMappedBufferResult.release();
@@ -314,7 +331,7 @@ public class HAConnection {
 
             SelectionKey sk = this.socketChannel.keyFor(this.selector);
             if (sk != null) {
-                sk.cancel();
+                sk.cancel();  // help gc
             }
 
             try {
@@ -327,9 +344,10 @@ public class HAConnection {
             HAConnection.log.info(this.getServiceName() + " service end");
         }
 
+        // 传递数据，master 写 CommitLog sync request 给 slave
         private boolean transferData() throws Exception {
-            int writeSizeZeroTimes = 0;
-            // Write Header
+            int writeSizeZeroTimes = 0;  // 没有写任何东西的次数
+            // Write Header，写 headerBuffer
             while (this.byteBufferHeader.hasRemaining()) {
                 int writeSize = this.socketChannel.write(this.byteBufferHeader);
                 if (writeSize > 0) {
@@ -350,7 +368,7 @@ public class HAConnection {
 
             writeSizeZeroTimes = 0;
 
-            // Write Body
+            // Write Body，写 body，也就是 CommitLog
             if (!this.byteBufferHeader.hasRemaining()) {
                 while (this.selectMappedBufferResult.getByteBuffer().hasRemaining()) {
                     int writeSize = this.socketChannel.write(this.selectMappedBufferResult.getByteBuffer());

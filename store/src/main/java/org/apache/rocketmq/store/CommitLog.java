@@ -1177,8 +1177,8 @@ public class CommitLog {
                     for (GroupCommitRequest req : this.requestsRead) {
                         // There may be a message in the next file, so a maximum of
                         // two times the flush
+                        // 下一个 MappedFile 可能有消息，最多尝试两次刷盘
                         boolean flushOK = false;
-                        // 最多尝试两次刷盘
                         for (int i = 0; i < 2 && !flushOK; i++) {
                             flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
 
