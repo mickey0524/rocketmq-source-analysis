@@ -41,8 +41,9 @@ public class IndexHeader {
         this.byteBuffer = byteBuffer;
     }
 
+    // 从 byteBuffer 读出 field/metric
     public void load() {
-        this.beginTimestamp.set(byteBuffer.getLong(beginTimestampIndex));
+        this.beginTimestamp.set(byteBuffer.getLong(beginTimestampIndex));  // 都是读绝对 index，不影响 position
         this.endTimestamp.set(byteBuffer.getLong(endTimestampIndex));
         this.beginPhyOffset.set(byteBuffer.getLong(beginPhyoffsetIndex));
         this.endPhyOffset.set(byteBuffer.getLong(endPhyoffsetIndex));
@@ -56,7 +57,7 @@ public class IndexHeader {
     }
 
     public void updateByteBuffer() {
-        this.byteBuffer.putLong(beginTimestampIndex, this.beginTimestamp.get());
+        this.byteBuffer.putLong(beginTimestampIndex, this.beginTimestamp.get());  // 按绝对 index put
         this.byteBuffer.putLong(endTimestampIndex, this.endTimestamp.get());
         this.byteBuffer.putLong(beginPhyoffsetIndex, this.beginPhyOffset.get());
         this.byteBuffer.putLong(endPhyoffsetIndex, this.endPhyOffset.get());

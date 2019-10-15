@@ -33,6 +33,7 @@ import org.apache.rocketmq.store.DefaultMessageStore;
 import org.apache.rocketmq.store.DispatchRequest;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 
+// 索引服务，IndexService 用于创建索引文件集合，当用户想要查询某个 topic 下某个 key 的消息时，可以快速响应
 public class IndexService {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     /**
@@ -44,27 +45,28 @@ public class IndexService {
     private final int indexNum;
     private final String storePath;
     private final ArrayList<IndexFile> indexFileList = new ArrayList<IndexFile>();
-    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();  // 读写锁
 
     public IndexService(final DefaultMessageStore store) {
         this.defaultMessageStore = store;
-        this.hashSlotNum = store.getMessageStoreConfig().getMaxHashSlotNum();
-        this.indexNum = store.getMessageStoreConfig().getMaxIndexNum();
+        this.hashSlotNum = store.getMessageStoreConfig().getMaxHashSlotNum();  // 5000000
+        this.indexNum = store.getMessageStoreConfig().getMaxIndexNum();  // 5000000 * 4
         this.storePath =
-            StorePathConfigHelper.getStorePathIndex(store.getMessageStoreConfig().getStorePathRootDir());
+            StorePathConfigHelper.getStorePathIndex(store.getMessageStoreConfig().getStorePathRootDir());  // 存储路径
     }
 
     public boolean load(final boolean lastExitOK) {
         File dir = new File(this.storePath);
-        File[] files = dir.listFiles();
+        File[] files = dir.listFiles();  // 存储路径下所有的文件
         if (files != null) {
             // ascending order
-            Arrays.sort(files);
+            Arrays.sort(files);  // 和 MappedFile 类似，用偏移做文件名
             for (File file : files) {
                 try {
                     IndexFile f = new IndexFile(file.getPath(), this.hashSlotNum, this.indexNum, 0, 0);
                     f.load();
 
+                    // 如果之前没有正常退出
                     if (!lastExitOK) {
                         if (f.getEndTimestamp() > this.defaultMessageStore.getStoreCheckpoint()
                             .getIndexMsgTimestamp()) {
@@ -87,6 +89,7 @@ public class IndexService {
         return true;
     }
 
+    // 删除 endPhyOffset 小于 offset 的 IndexFile
     public void deleteExpiredFile(long offset) {
         Object[] files = null;
         try {
@@ -120,6 +123,7 @@ public class IndexService {
         }
     }
 
+    // 删除 files 这个 List 中的 IndexFile
     private void deleteExpiredFile(List<IndexFile> files) {
         if (!files.isEmpty()) {
             try {
@@ -140,6 +144,7 @@ public class IndexService {
         }
     }
 
+    // service destroy，对所有的 IndexFile 执行 destroy 方法
     public void destroy() {
         try {
             this.readWriteLock.writeLock().lock();
@@ -154,6 +159,7 @@ public class IndexService {
         }
     }
 
+    // 获取物理偏移
     public QueryOffsetResult queryOffset(String topic, String key, int maxNum, long begin, long end) {
         List<Long> phyOffsets = new ArrayList<Long>(maxNum);
 
@@ -166,6 +172,7 @@ public class IndexService {
                 for (int i = this.indexFileList.size(); i > 0; i--) {
                     IndexFile f = this.indexFileList.get(i - 1);
                     boolean lastFile = i == this.indexFileList.size();
+                    // 这个也不用放到循环里来每次判断一下吧。。
                     if (lastFile) {
                         indexLastUpdateTimestamp = f.getEndTimestamp();
                         indexLastUpdatePhyoffset = f.getEndPhyOffset();
@@ -194,10 +201,12 @@ public class IndexService {
         return new QueryOffsetResult(phyOffsets, indexLastUpdateTimestamp, indexLastUpdatePhyoffset);
     }
 
+    // 这里不用 StringBuilder 了，代码一致性不好呀-。-
     private String buildKey(final String topic, final String key) {
         return topic + "#" + key;
     }
 
+    // 生成 index，然后调用 putKey 将 topic + key 写入 IndexFile
     public void buildIndex(DispatchRequest req) {
         IndexFile indexFile = retryGetAndCreateIndexFile();
         if (indexFile != null) {
@@ -245,6 +254,7 @@ public class IndexService {
         }
     }
 
+    // put key 到 IndexFile 中
     private IndexFile putKey(IndexFile indexFile, DispatchRequest msg, String idxKey) {
         for (boolean ok = indexFile.putKey(idxKey, msg.getCommitLogOffset(), msg.getStoreTimestamp()); !ok; ) {
             log.warn("Index file [" + indexFile.getFileName() + "] is full, trying to create another one");
@@ -265,9 +275,10 @@ public class IndexService {
      *
      * @return {@link IndexFile} or null on failure.
      */
+    // getOrCreate IndexFile
     public IndexFile retryGetAndCreateIndexFile() {
         IndexFile indexFile = null;
-
+        // MAX_TRY_IDX_CREATE = 3
         for (int times = 0; null == indexFile && times < MAX_TRY_IDX_CREATE; times++) {
             indexFile = this.getAndCreateLastIndexFile();
             if (null != indexFile)
@@ -299,6 +310,7 @@ public class IndexService {
             this.readWriteLock.readLock().lock();
             if (!this.indexFileList.isEmpty()) {
                 IndexFile tmp = this.indexFileList.get(this.indexFileList.size() - 1);
+                // IndexFile 没写满
                 if (!tmp.isWriteFull()) {
                     indexFile = tmp;
                 } else {
@@ -311,6 +323,7 @@ public class IndexService {
             this.readWriteLock.readLock().unlock();
         }
 
+        // 需要创建新的 IndexFile
         if (indexFile == null) {
             try {
                 String fileName =
@@ -332,6 +345,7 @@ public class IndexService {
                 Thread flushThread = new Thread(new Runnable() {
                     @Override
                     public void run() {
+                        // flush 之前的 IndexFile
                         IndexService.this.flush(flushThisFile);
                     }
                 }, "FlushIndexFileThread");

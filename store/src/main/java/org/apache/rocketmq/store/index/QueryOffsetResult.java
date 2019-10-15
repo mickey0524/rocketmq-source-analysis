@@ -18,6 +18,7 @@ package org.apache.rocketmq.store.index;
 
 import java.util.List;
 
+// 查询 offest 的结果包装类
 public class QueryOffsetResult {
     private final List<Long> phyOffsets;
     private final long indexLastUpdateTimestamp;
