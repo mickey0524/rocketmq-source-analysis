@@ -118,12 +118,14 @@ public class RunningFlags {
         return false;
     }
 
+    // 返回 flagBits 之前是否是 full 的
     public boolean getAndMakeDiskFull() {
         boolean result = !((this.flagBits & DISK_FULL_BIT) == DISK_FULL_BIT);
         this.flagBits |= DISK_FULL_BIT;
         return result;
     }
 
+    // 返回 flagBits 之前是否是 ok 的
     public boolean getAndMakeDiskOK() {
         boolean result = !((this.flagBits & DISK_FULL_BIT) == DISK_FULL_BIT);
         this.flagBits &= ~DISK_FULL_BIT;

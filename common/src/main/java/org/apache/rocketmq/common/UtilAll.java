@@ -197,6 +197,7 @@ public class UtilAll {
             cal.get(Calendar.SECOND));
     }
 
+    // 获取磁盘的使用比率
     public static double getDiskPartitionSpaceUsedPercent(final String path) {
         if (null == path || path.isEmpty())
             return -1;
@@ -207,10 +208,10 @@ public class UtilAll {
             if (!file.exists())
                 return -1;
 
-            long totalSpace = file.getTotalSpace();
+            long totalSpace = file.getTotalSpace();  // 获取 File 的总字节数
 
             if (totalSpace > 0) {
-                long freeSpace = file.getFreeSpace();
+                long freeSpace = file.getFreeSpace();  // 获取 File 的空余字节数
                 long usedSpace = totalSpace - freeSpace;
 
                 return usedSpace / (double) totalSpace;
