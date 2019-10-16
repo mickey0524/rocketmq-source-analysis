@@ -168,6 +168,7 @@ public class MappedFileQueue {
             Arrays.sort(files);
             for (File file : files) {
                 // 检查文件的长度
+                // ？？？最后一个文件有可能不到这个 size 啊。。。
                 if (file.length() != this.mappedFileSize) {
                     log.warn(file + "\t" + file.length()
                         + " length not matched message store config value, please check it manually");

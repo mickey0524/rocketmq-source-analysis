@@ -63,35 +63,35 @@ import org.apache.rocketmq.store.stats.BrokerStatsManager;
 // MessageStore 还是一个 store 包下的 Context，起着上下文的作用
 public class DefaultMessageStore implements MessageStore {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
-
+    // Message 存储的配置
     private final MessageStoreConfig messageStoreConfig;
     // CommitLog
     private final CommitLog commitLog;
     // 每个 topic 的每个 queueId 都对应一个 ConsumeQueue
     private final ConcurrentMap<String/* topic */, ConcurrentMap<Integer/* queueId */, ConsumeQueue>> consumeQueueTable;
-
+    // ConsumeQueue 刷盘服务
     private final FlushConsumeQueueService flushConsumeQueueService;
-
+    // CommitLog 清理服务
     private final CleanCommitLogService cleanCommitLogService;
-
+    // ConsumeQueue 清理服务
     private final CleanConsumeQueueService cleanConsumeQueueService;
-
+    // 索引服务 topic + key
     private final IndexService indexService;
-
+    // 分配 MappedFile 的服务
     private final AllocateMappedFileService allocateMappedFileService;
-
+    // 分发 DispatchRequest 到 ConsumeQueue 和 IndexService
     private final ReputMessageService reputMessageService;
-
+    // Message 在 master broker 和 slave broker 之间同步
     private final HAService haService;
-
+    // 延迟调度的服务
     private final ScheduleMessageService scheduleMessageService;
 
     private final StoreStatsService storeStatsService;
-
+    // ByteBuffer.allocateDirect 分配好 5 个 MappedFile
     private final TransientStorePool transientStorePool;
-
+    // 当前的运行状态
     private final RunningFlags runningFlags = new RunningFlags();
-    private final SystemClock systemClock = new SystemClock();
+    private final SystemClock systemClock = new SystemClock();  // 其实就是一个 now 方法，返回当前的时间戳
 
     private final ScheduledExecutorService scheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("StoreScheduledThread"));
@@ -100,7 +100,7 @@ public class DefaultMessageStore implements MessageStore {
     private final BrokerConfig brokerConfig;
 
     private volatile boolean shutdown = true;
-
+    // 存储检查点
     private StoreCheckpoint storeCheckpoint;
 
     private AtomicLong printTimes = new AtomicLong(0);
@@ -152,6 +152,7 @@ public class DefaultMessageStore implements MessageStore {
         this.indexService.start();
 
         this.dispatcherList = new LinkedList<>();
+        // 暂时只有两个 CommitLogDispatcher
         this.dispatcherList.addLast(new CommitLogDispatcherBuildConsumeQueue());
         this.dispatcherList.addLast(new CommitLogDispatcherBuildIndex());
 
@@ -160,6 +161,7 @@ public class DefaultMessageStore implements MessageStore {
         lockFile = new RandomAccessFile(file, "rw");
     }
 
+    // 删除 ConsumeQueue 的脏文件，逻辑文件对应 ConsumeQueue
     public void truncateDirtyLogicFiles(long phyOffset) {
         ConcurrentMap<String, ConcurrentMap<Integer, ConsumeQueue>> tables = DefaultMessageStore.this.consumeQueueTable;
 
@@ -181,7 +183,7 @@ public class DefaultMessageStore implements MessageStore {
             log.info("last shutdown {}", lastExitOK ? "normally" : "abnormally");
 
             if (null != scheduleMessageService) {
-                result = result && this.scheduleMessageService.load();
+                result = result && this.scheduleMessageService.load();  // load 延迟调度的 offsetTable
             }
 
             // load Commit Log
@@ -191,6 +193,7 @@ public class DefaultMessageStore implements MessageStore {
             result = result && this.loadConsumeQueue();
 
             if (result) {
+                // 检查点中存储着 3 个文件的最后 flush 时间
                 this.storeCheckpoint =
                     new StoreCheckpoint(StorePathConfigHelper.getStoreCheckpoint(this.messageStoreConfig.getStorePathRootDir()));
 
@@ -215,8 +218,9 @@ public class DefaultMessageStore implements MessageStore {
     /**
      * @throws Exception
      */
+    // 启动
     public void start() throws Exception {
-
+        // 给 FileChannel 的第一个 pos 上锁，避免重复启动，为啥不用双校验锁呢
         lock = lockFile.getChannel().tryLock(0, 1, false);
         if (lock == null || lock.isShared() || !lock.isValid()) {
             throw new RuntimeException("Lock failed,MQ already started");
@@ -256,6 +260,8 @@ public class DefaultMessageStore implements MessageStore {
             }
             log.info("[SetReputOffset] maxPhysicalPosInLogicQueue={} clMinOffset={} clMaxOffset={} clConfirmedOffset={}",
                 maxPhysicalPosInLogicQueue, this.commitLog.getMinOffset(), this.commitLog.getMaxOffset(), this.commitLog.getConfirmOffset());
+            // 将 ConsumeQueue 中最大的物理偏移写到 reputMessageService 中
+            // 然后开始 CommitLog 的分派
             this.reputMessageService.setReputFromOffset(maxPhysicalPosInLogicQueue);
             this.reputMessageService.start();
 
@@ -270,11 +276,12 @@ public class DefaultMessageStore implements MessageStore {
                 Thread.sleep(1000);
                 log.info("Try to finish doing reput the messages fall behind during the starting, reputOffset={} maxOffset={} behind={}", this.reputMessageService.getReputFromOffset(), this.getMaxPhyOffset(), this.dispatchBehindBytes());
             }
+            // 等 ConsumeQueue 追上 CommitLog 之后，更新 CommitLog 的 topicQueueTable
             this.recoverTopicQueueTable();
         }
 
         if (!messageStoreConfig.isEnableDLegerCommitLog()) {
-            this.haService.start();
+            this.haService.start();  // 启动 HA 服务
             this.handleScheduleMessageService(messageStoreConfig.getBrokerRole());
         }
 
@@ -288,7 +295,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
 
-
+    // 关闭
     public void shutdown() {
         if (!this.shutdown) {
             this.shutdown = true;
@@ -319,6 +326,7 @@ public class DefaultMessageStore implements MessageStore {
             this.storeCheckpoint.shutdown();
 
             if (this.runningFlags.isWriteable() && dispatchBehindBytes() == 0) {
+                // 这个文件就是用来判断是否是正常退出
                 this.deleteFile(StorePathConfigHelper.getAbortFile(this.messageStoreConfig.getStorePathRootDir()));
                 shutDownNormal = true;
             } else {
@@ -337,14 +345,16 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    // destroy
     public void destroy() {
-        this.destroyLogics();
-        this.commitLog.destroy();
-        this.indexService.destroy();
+        this.destroyLogics();  // 删除 ConsumeQueue
+        this.commitLog.destroy();  // 删除 CommitLog
+        this.indexService.destroy();  // 删除 IndexService
         this.deleteFile(StorePathConfigHelper.getAbortFile(this.messageStoreConfig.getStorePathRootDir()));
         this.deleteFile(StorePathConfigHelper.getStoreCheckpoint(this.messageStoreConfig.getStorePathRootDir()));
     }
 
+    //删除所有的 ConsumeQueue 实例
     public void destroyLogics() {
         for (ConcurrentMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
             for (ConsumeQueue logic : maps.values()) {
@@ -354,11 +364,13 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     public PutMessageResult putMessage(MessageExtBrokerInner msg) {
+        // 服务关闭
         if (this.shutdown) {
             log.warn("message store has shutdown, so putMessage is forbidden");
             return new PutMessageResult(PutMessageStatus.SERVICE_NOT_AVAILABLE, null);
         }
 
+        // broker 是 slave
         if (BrokerRole.SLAVE == this.messageStoreConfig.getBrokerRole()) {
             long value = this.printTimes.getAndIncrement();
             if ((value % 50000) == 0) {
@@ -368,6 +380,7 @@ public class DefaultMessageStore implements MessageStore {
             return new PutMessageResult(PutMessageStatus.SERVICE_NOT_AVAILABLE, null);
         }
 
+        // 服务不可写
         if (!this.runningFlags.isWriteable()) {
             long value = this.printTimes.getAndIncrement();
             if ((value % 50000) == 0) {
@@ -379,16 +392,19 @@ public class DefaultMessageStore implements MessageStore {
             this.printTimes.set(0);
         }
 
+        // topic 过长
         if (msg.getTopic().length() > Byte.MAX_VALUE) {
             log.warn("putMessage message topic length too long " + msg.getTopic().length());
             return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null);
         }
 
+        // properties 过长
         if (msg.getPropertiesString() != null && msg.getPropertiesString().length() > Short.MAX_VALUE) {
             log.warn("putMessage message properties length too long " + msg.getPropertiesString().length());
             return new PutMessageResult(PutMessageStatus.PROPERTIES_SIZE_EXCEEDED, null);
         }
 
+        // CommitLog 上锁时间过长
         if (this.isOSPageCacheBusy()) {
             return new PutMessageResult(PutMessageStatus.OS_PAGECACHE_BUSY, null);
         }
@@ -471,9 +487,10 @@ public class DefaultMessageStore implements MessageStore {
         long diff = this.systemClock.now() - begin;
 
         return diff < 10000000
-                && diff > this.messageStoreConfig.getOsPageCacheBusyTimeOutMills();
+                && diff > this.messageStoreConfig.getOsPageCacheBusyTimeOutMills();  // 1000
     }
 
+    // 获取 CommitLog 的上锁时间
     @Override
     public long lockTimeMills() {
         return this.commitLog.lockTimeMills();
@@ -487,14 +504,17 @@ public class DefaultMessageStore implements MessageStore {
         return commitLog;
     }
 
+    // 获取消息，消费者分组从 topic 的某一个 consume queue 的指定位点（消费队列的逻辑位点） 开始拉消息，一次最多 maxMsgNums 条
     public GetMessageResult getMessage(final String group, final String topic, final int queueId, final long offset,
         final int maxMsgNums,
         final MessageFilter messageFilter) {
+        // 服务不可用
         if (this.shutdown) {
             log.warn("message store has shutdown, so getMessage is forbidden");
             return null;
         }
 
+        // 服务不可读
         if (!this.runningFlags.isReadable()) {
             log.warn("message store is not readable, so getMessage is forbidden " + this.runningFlags.getFlagBits());
             return null;
@@ -509,12 +529,12 @@ public class DefaultMessageStore implements MessageStore {
 
         GetMessageResult getResult = new GetMessageResult();
 
-        final long maxOffsetPy = this.commitLog.getMaxOffset();
+        final long maxOffsetPy = this.commitLog.getMaxOffset();  // 最大的物理偏移
 
-        ConsumeQueue consumeQueue = findConsumeQueue(topic, queueId);
+        ConsumeQueue consumeQueue = findConsumeQueue(topic, queueId);  // 得到 topic + queueId 对应的 ConsumeQueue
         if (consumeQueue != null) {
-            minOffset = consumeQueue.getMinOffsetInQueue();
-            maxOffset = consumeQueue.getMaxOffsetInQueue();
+            minOffset = consumeQueue.getMinOffsetInQueue();  // 最小的逻辑位点
+            maxOffset = consumeQueue.getMaxOffsetInQueue();  // 最大的逻辑位点
 
             if (maxOffset == 0) {
                 status = GetMessageStatus.NO_MESSAGE_IN_QUEUE;
@@ -533,6 +553,7 @@ public class DefaultMessageStore implements MessageStore {
                     nextBeginOffset = nextOffsetCorrection(offset, maxOffset);
                 }
             } else {
+                // 根据 offset 找到 MappedFile，然后找到对应的位点，得到 SelectMappedBufferResult
                 SelectMappedBufferResult bufferConsumeQueue = consumeQueue.getIndexBuffer(offset);
                 if (bufferConsumeQueue != null) {
                     try {
@@ -542,12 +563,13 @@ public class DefaultMessageStore implements MessageStore {
                         long maxPhyOffsetPulling = 0;
 
                         int i = 0;
+                        // 最多处理多少条消息
                         final int maxFilterMessageCount = Math.max(16000, maxMsgNums * ConsumeQueue.CQ_STORE_UNIT_SIZE);
                         final boolean diskFallRecorded = this.messageStoreConfig.isDiskFallRecorded();
                         ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit();
                         for (; i < bufferConsumeQueue.getSize() && i < maxFilterMessageCount; i += ConsumeQueue.CQ_STORE_UNIT_SIZE) {
-                            long offsetPy = bufferConsumeQueue.getByteBuffer().getLong();
-                            int sizePy = bufferConsumeQueue.getByteBuffer().getInt();
+                            long offsetPy = bufferConsumeQueue.getByteBuffer().getLong();  // 物理偏移
+                            int sizePy = bufferConsumeQueue.getByteBuffer().getInt();  // 长度
                             long tagsCode = bufferConsumeQueue.getByteBuffer().getLong();
 
                             maxPhyOffsetPulling = offsetPy;
@@ -559,6 +581,7 @@ public class DefaultMessageStore implements MessageStore {
 
                             boolean isInDisk = checkInDiskByCommitOffset(offsetPy, maxOffsetPy);
 
+                            // 一旦拉满了，就退出 for 循环
                             if (this.isTheBatchFull(sizePy, maxMsgNums, getResult.getBufferTotalSize(), getResult.getMessageCount(),
                                 isInDisk)) {
                                 break;
@@ -1090,6 +1113,7 @@ public class DefaultMessageStore implements MessageStore {
         return false;
     }
 
+    // CommitLog 分发落后了多少
     @Override
     public long dispatchBehindBytes() {
         return this.reputMessageService.behind();
@@ -1161,6 +1185,7 @@ public class DefaultMessageStore implements MessageStore {
         return logic;
     }
 
+    // 纠正 offset
     private long nextOffsetCorrection(long oldOffset, long newOffset) {
         long nextOffset = oldOffset;
         if (this.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE || this.getMessageStoreConfig().isOffsetCheckInSlave()) {
@@ -1169,11 +1194,13 @@ public class DefaultMessageStore implements MessageStore {
         return nextOffset;
     }
 
+    // 检查
     private boolean checkInDiskByCommitOffset(long offsetPy, long maxOffsetPy) {
         long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0));
         return (maxOffsetPy - offsetPy) > memory;
     }
 
+    // 这个批次是否 full 了
     private boolean isTheBatchFull(int sizePy, int maxMsgNums, int bufferTotal, int messageTotal, boolean isInDisk) {
 
         if (0 == bufferTotal || 0 == messageTotal) {
@@ -1205,12 +1232,14 @@ public class DefaultMessageStore implements MessageStore {
         return false;
     }
 
+    // 删除文件，这个方法也可以放到 util 里去
     private void deleteFile(final String fileName) {
         File file = new File(fileName);
         boolean result = file.delete();
         log.info(fileName + (result ? " delete OK" : " delete Failed"));
     }
 
+    // 创建 temp file
     /**
      * @throws IOException
      */
@@ -1222,11 +1251,13 @@ public class DefaultMessageStore implements MessageStore {
         log.info(fileName + (result ? " create OK" : " already exists"));
     }
 
+    // 添加定时任务
     private void addScheduleTask() {
 
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
+                // 定时删除文件（10 sec）
                 DefaultMessageStore.this.cleanFilesPeriodically();
             }
         }, 1000 * 60, this.messageStoreConfig.getCleanResourceInterval(), TimeUnit.MILLISECONDS);
@@ -1234,6 +1265,7 @@ public class DefaultMessageStore implements MessageStore {
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
+                // 定时检查 MappedFileQueue 中文件的大小（10 min）
                 DefaultMessageStore.this.checkSelf();
             }
         }, 1, 10, TimeUnit.MINUTES);
@@ -1241,8 +1273,10 @@ public class DefaultMessageStore implements MessageStore {
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
+                // 是否允许锁 debug
                 if (DefaultMessageStore.this.getMessageStoreConfig().isDebugLockEnable()) {
                     try {
+                        // 1 s 检查一下锁情况
                         if (DefaultMessageStore.this.commitLog.getBeginTimeInLock() != 0) {
                             long lockTime = System.currentTimeMillis() - DefaultMessageStore.this.commitLog.getBeginTimeInLock();
                             if (lockTime > 1000 && lockTime < 10000000) {
@@ -1267,13 +1301,14 @@ public class DefaultMessageStore implements MessageStore {
         // }, 1, 1, TimeUnit.HOURS);
     }
 
+    // 10s 一次 clean CommitLog 和 ConsumeQueue
     private void cleanFilesPeriodically() {
         this.cleanCommitLogService.run();
         this.cleanConsumeQueueService.run();
     }
 
     private void checkSelf() {
-        this.commitLog.checkSelf();
+        this.commitLog.checkSelf();  // 检查 CommitLog 中每个 MappedFile 长度是否和 fileSize 相同
 
         Iterator<Entry<String, ConcurrentMap<Integer, ConsumeQueue>>> it = this.consumeQueueTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -1281,30 +1316,34 @@ public class DefaultMessageStore implements MessageStore {
             Iterator<Entry<Integer, ConsumeQueue>> itNext = next.getValue().entrySet().iterator();
             while (itNext.hasNext()) {
                 Entry<Integer, ConsumeQueue> cq = itNext.next();
-                cq.getValue().checkSelf();
+                cq.getValue().checkSelf();  // 检查 ConsumeQueue 中每个 MappedFile 长度是否和 fileSize 相同
             }
         }
     }
 
+    // temp 文件是否存在
     private boolean isTempFileExist() {
         String fileName = StorePathConfigHelper.getAbortFile(this.messageStoreConfig.getStorePathRootDir());
         File file = new File(fileName);
         return file.exists();
     }
 
+    // load ConsumeQueue
     private boolean loadConsumeQueue() {
+        // consumequeue 一级目录
         File dirLogic = new File(StorePathConfigHelper.getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()));
         File[] fileTopicList = dirLogic.listFiles();
         if (fileTopicList != null) {
 
             for (File fileTopic : fileTopicList) {
                 String topic = fileTopic.getName();
-
+                // consumequeue/${topic} 二级目录
                 File[] fileQueueIdList = fileTopic.listFiles();
                 if (fileQueueIdList != null) {
                     for (File fileQueueId : fileQueueIdList) {
                         int queueId;
                         try {
+                            // consumequeue/${topic}/queueId
                             queueId = Integer.parseInt(fileQueueId.getName());
                         } catch (NumberFormatException e) {
                             continue;
@@ -1329,6 +1368,7 @@ public class DefaultMessageStore implements MessageStore {
         return true;
     }
 
+    // 恢复
     private void recover(final boolean lastExitOK) {
         long maxPhyOffsetOfConsumeQueue = this.recoverConsumeQueue();
 
@@ -1360,6 +1400,7 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    // 恢复 ConsumeQueue，返回最大的物理偏移
     private long recoverConsumeQueue() {
         long maxPhysicOffset = -1;
         for (ConcurrentMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
@@ -1374,14 +1415,15 @@ public class DefaultMessageStore implements MessageStore {
         return maxPhysicOffset;
     }
 
+    // 恢复 CommitLog 中的 topicQueueTable
     public void recoverTopicQueueTable() {
         HashMap<String/* topic-queueid */, Long/* offset */> table = new HashMap<String, Long>(1024);
         long minPhyOffset = this.commitLog.getMinOffset();
         for (ConcurrentMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
             for (ConsumeQueue logic : maps.values()) {
                 String key = logic.getTopic() + "-" + logic.getQueueId();
-                table.put(key, logic.getMaxOffsetInQueue());
-                logic.correctMinOffset(minPhyOffset);
+                table.put(key, logic.getMaxOffsetInQueue());  // 从 ConsumeQueue 中获取最大 offset
+                logic.correctMinOffset(minPhyOffset);  // 纠正最小逻辑 offset
             }
         }
 
@@ -1439,10 +1481,12 @@ public class DefaultMessageStore implements MessageStore {
         return brokerStatsManager;
     }
 
+    // 处理延迟服务
     @Override
     public void handleScheduleMessageService(final BrokerRole brokerRole) {
         if (this.scheduleMessageService != null) {
             if (brokerRole == BrokerRole.SLAVE) {
+                // slave 不需要延迟服务
                 this.scheduleMessageService.shutdown();
             } else {
                 this.scheduleMessageService.start();

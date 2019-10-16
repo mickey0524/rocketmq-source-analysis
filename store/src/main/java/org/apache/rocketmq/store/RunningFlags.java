@@ -16,6 +16,7 @@
  */
 package org.apache.rocketmq.store;
 
+// RunningFlags 指代当前 messageStore 服务的运行状态
 public class RunningFlags {
 
     private static final int NOT_READABLE_BIT = 1;

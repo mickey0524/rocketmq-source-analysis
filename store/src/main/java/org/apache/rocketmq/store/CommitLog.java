@@ -240,6 +240,7 @@ public class CommitLog {
             this.mappedFileQueue.truncateDirtyFiles(processOffset);  // processOffset 之后的 MappedFile 可以 remove
 
             // Clear ConsumeQueue redundant data
+            // 清理 ConsumeQueue 中多余的数据
             if (maxPhyOffsetOfConsumeQueue >= processOffset) {
                 log.warn("maxPhyOffsetOfConsumeQueue({}) >= processOffset({}), truncate dirty logic files", maxPhyOffsetOfConsumeQueue, processOffset);
                 this.defaultMessageStore.truncateDirtyLogicFiles(processOffset);

@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
+// 获取消息的结果
 public class GetMessageResult {
 
     private final List<SelectMappedBufferResult> messageMapedList =

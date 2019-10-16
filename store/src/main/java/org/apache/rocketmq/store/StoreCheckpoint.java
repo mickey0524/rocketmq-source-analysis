@@ -27,6 +27,11 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
+// 存储的检查点，通过 checkpoint 文件存储 CommitLog，ConsumeQueue，IndexFile 的 flush 时间
+// 加载 ${user.home}/store/checkpoint 这个文件存储了 3 个 long 类型的值来记录存储模型最终一致的时间点，这个 3 个 long 的值为
+// physicMsgTimestamp 为 commitLog 最后刷盘的时间
+// logicMsgTimestamp 为 consumeQueue 最终刷盘的时间
+// indexMsgTimestamp 为索引最终刷盘时间
 public class StoreCheckpoint {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private final RandomAccessFile randomAccessFile;
@@ -38,7 +43,7 @@ public class StoreCheckpoint {
 
     public StoreCheckpoint(final String scpPath) throws IOException {
         File file = new File(scpPath);
-        MappedFile.ensureDirOK(file.getParent());
+        MappedFile.ensureDirOK(file.getParent());  // 我觉得这个方法不如放到 util 或者 mixall 中去
         boolean fileExists = file.exists();
 
         this.randomAccessFile = new RandomAccessFile(file, "rw");
@@ -46,6 +51,7 @@ public class StoreCheckpoint {
         this.mappedByteBuffer = fileChannel.map(MapMode.READ_WRITE, 0, MappedFile.OS_PAGE_SIZE);
 
         if (fileExists) {
+            // 检查点文件存在
             log.info("store checkpoint file exists, " + scpPath);
             this.physicMsgTimestamp = this.mappedByteBuffer.getLong(0);
             this.logicsMsgTimestamp = this.mappedByteBuffer.getLong(8);
@@ -75,6 +81,7 @@ public class StoreCheckpoint {
         }
     }
 
+    // flush 到磁盘
     public void flush() {
         this.mappedByteBuffer.putLong(0, this.physicMsgTimestamp);
         this.mappedByteBuffer.putLong(8, this.logicsMsgTimestamp);
