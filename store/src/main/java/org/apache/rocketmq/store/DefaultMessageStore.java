@@ -505,6 +505,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     // 获取消息，消费者分组从 topic 的某一个 consume queue 的指定位点（消费队列的逻辑位点） 开始拉消息，一次最多 maxMsgNums 条
+    // offset 是消费队列的逻辑位点，要除 CQ_STORE_UNIT_SIZE 的那种
     public GetMessageResult getMessage(final String group, final String topic, final int queueId, final long offset,
         final int maxMsgNums,
         final MessageFilter messageFilter) {
@@ -600,6 +601,7 @@ public class DefaultMessageStore implements MessageStore {
                                 }
                             }
 
+                            // 针对 hashCode 进行过滤
                             if (messageFilter != null
                                 && !messageFilter.isMatchedByConsumeQueue(isTagsCodeLegal ? tagsCode : null, extRet ? cqExtUnit : null)) {
                                 if (getResult.getBufferTotalSize() == 0) {
@@ -614,11 +616,12 @@ public class DefaultMessageStore implements MessageStore {
                                 if (getResult.getBufferTotalSize() == 0) {
                                     status = GetMessageStatus.MESSAGE_WAS_REMOVING;
                                 }
-
+                                // 拿到下一个 MappedFile 的 startOffset
                                 nextPhyFileStartOffset = this.commitLog.rollNextFile(offsetPy);
                                 continue;
                             }
 
+                            // DefaultMessageFilter 中 isMatchedByCommitLog 方法返回 true
                             if (messageFilter != null
                                 && !messageFilter.isMatchedByCommitLog(selectResult.getByteBuffer().slice(), null)) {
                                 if (getResult.getBufferTotalSize() == 0) {
@@ -635,13 +638,15 @@ public class DefaultMessageStore implements MessageStore {
                             nextPhyFileStartOffset = Long.MIN_VALUE;
                         }
 
+                        // 记录 CommitLog 的最大 offset 比本次拉取的消息中最大物理 offset 大多少 
                         if (diskFallRecorded) {
                             long fallBehind = maxOffsetPy - maxPhyOffsetPulling;
                             brokerStatsManager.recordDiskFallBehindSize(group, topic, queueId, fallBehind);
                         }
 
                         nextBeginOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE);
-
+                        // 如果写入 commitlog 的物理位点和读取的物理位点差值(理解为消息堆积量) 比预设的最大的内存容量要大
+                        // 则推荐 client 从 slave 拉
                         long diff = maxOffsetPy - maxPhyOffsetPulling;
                         long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE
                             * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0));
@@ -663,8 +668,10 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         if (GetMessageStatus.FOUND == status) {
+            // 找到了消息
             this.storeStatsService.getGetMessageTimesTotalFound().incrementAndGet();
         } else {
+            // 没有找到消息
             this.storeStatsService.getGetMessageTimesTotalMiss().incrementAndGet();
         }
         long elapsedTime = this.getSystemClock().now() - beginTime;
@@ -677,6 +684,7 @@ public class DefaultMessageStore implements MessageStore {
         return getResult;
     }
 
+    // 获取 topic + queueId 对应的 ConsumeQueue 最大的逻辑位点
     public long getMaxOffsetInQueue(String topic, int queueId) {
         ConsumeQueue logic = this.findConsumeQueue(topic, queueId);
         if (logic != null) {
@@ -687,6 +695,7 @@ public class DefaultMessageStore implements MessageStore {
         return 0;
     }
 
+    // 获取 topic + queueId 对应的 ConsumeQueue 最小的逻辑位点
     public long getMinOffsetInQueue(String topic, int queueId) {
         ConsumeQueue logic = this.findConsumeQueue(topic, queueId);
         if (logic != null) {
@@ -696,6 +705,7 @@ public class DefaultMessageStore implements MessageStore {
         return -1;
     }
 
+    // 获取 ConsumeQueue 中 consumeQueueOffset 位点对应的 CommitLog 的位点在哪
     @Override
     public long getCommitLogOffsetInQueue(String topic, int queueId, long consumeQueueOffset) {
         ConsumeQueue consumeQueue = findConsumeQueue(topic, queueId);
@@ -714,6 +724,7 @@ public class DefaultMessageStore implements MessageStore {
         return 0;
     }
 
+    // 获取 ConsumeQueue 中存储的 storeTs 最接近 timestamp 的消息的逻辑位点
     public long getOffsetInQueueByTime(String topic, int queueId, long timestamp) {
         ConsumeQueue logic = this.findConsumeQueue(topic, queueId);
         if (logic != null) {
@@ -723,7 +734,9 @@ public class DefaultMessageStore implements MessageStore {
         return 0;
     }
 
+
     public MessageExt lookMessageByOffset(long commitLogOffset) {
+        // 取出 commitLogOffset 对应的 msg 的 totalSize
         SelectMappedBufferResult sbr = this.commitLog.getMessage(commitLogOffset, 4);
         if (null != sbr) {
             try {
@@ -738,6 +751,7 @@ public class DefaultMessageStore implements MessageStore {
         return null;
     }
 
+    // 获取包裹 CommitLog 中处于 commitLogOffset 位置的消息的 SelectMappedBufferResult
     @Override
     public SelectMappedBufferResult selectOneMessageByOffset(long commitLogOffset) {
         SelectMappedBufferResult sbr = this.commitLog.getMessage(commitLogOffset, 4);
@@ -793,22 +807,26 @@ public class DefaultMessageStore implements MessageStore {
         return result;
     }
 
+    // 获取 CommitLog 的最大物理偏移
     @Override
     public long getMaxPhyOffset() {
         return this.commitLog.getMaxOffset();
     }
 
+    // 获取 CommitLog 的最小物理偏移
     @Override
     public long getMinPhyOffset() {
         return this.commitLog.getMinOffset();
     }
 
+    // 获取 topic + queueId 最早的消息时间
     @Override
     public long getEarliestMessageTime(String topic, int queueId) {
         ConsumeQueue logicQueue = this.findConsumeQueue(topic, queueId);
         if (logicQueue != null) {
             long minLogicOffset = logicQueue.getMinLogicOffset();
 
+            // 把最小偏移的消息取出放到 SelectMappedBufferResult 中
             SelectMappedBufferResult result = logicQueue.getIndexBuffer(minLogicOffset / ConsumeQueue.CQ_STORE_UNIT_SIZE);
             return getStoreTime(result);
         }
@@ -816,6 +834,7 @@ public class DefaultMessageStore implements MessageStore {
         return -1;
     }
 
+    // 获取 ConsumeQueue 中拿出的索引对应的消息的存储时间
     private long getStoreTime(SelectMappedBufferResult result) {
         if (result != null) {
             try {
@@ -831,10 +850,11 @@ public class DefaultMessageStore implements MessageStore {
         return -1;
     }
 
+    // 获取 CommitLog 最早的消息时间
     @Override
     public long getEarliestMessageTime() {
         final long minPhyOffset = this.getMinPhyOffset();
-        final int size = this.messageStoreConfig.getMaxMessageSize() * 2;
+        final int size = this.messageStoreConfig.getMaxMessageSize() * 2;  // defense in depth
         return this.getCommitLog().pickupStoreTimestamp(minPhyOffset, size);
     }
 
@@ -849,6 +869,7 @@ public class DefaultMessageStore implements MessageStore {
         return -1;
     }
 
+    // 获取 topic + queueId 对应的 ConsumeQueue 中消息的数量，因为除了 CQ_STORE_UNIT_SIZE
     @Override
     public long getMessageTotalInQueue(String topic, int queueId) {
         ConsumeQueue logicQueue = this.findConsumeQueue(topic, queueId);
@@ -859,6 +880,7 @@ public class DefaultMessageStore implements MessageStore {
         return -1;
     }
 
+    // 获取 CommitLog 中 offset 位于的 MappedFile 在 offset 到 readPosition 之间的数据
     @Override
     public SelectMappedBufferResult getCommitLogData(final long offset) {
         if (this.shutdown) {
@@ -869,6 +891,7 @@ public class DefaultMessageStore implements MessageStore {
         return this.commitLog.getData(offset);
     }
 
+    // append 数据到 CommitLog 中去
     @Override
     public boolean appendToCommitLog(long startOffset, byte[] data) {
         if (this.shutdown) {
@@ -886,11 +909,13 @@ public class DefaultMessageStore implements MessageStore {
         return result;
     }
 
+    // 手动删除 CommitLog
     @Override
     public void executeDeleteFilesManually() {
         this.cleanCommitLogService.excuteDeleteFilesManualy();
     }
 
+    // 查询消息
     @Override
     public QueryMessageResult queryMessage(String topic, String key, int maxNum, long begin, long end) {
         QueryMessageResult queryMessageResult = new QueryMessageResult();
@@ -903,7 +928,7 @@ public class DefaultMessageStore implements MessageStore {
                 break;
             }
 
-            Collections.sort(queryOffsetResult.getPhyOffsets());
+            Collections.sort(queryOffsetResult.getPhyOffsets());  // 按照物理 offset 从小到大排序
 
             queryMessageResult.setIndexLastUpdatePhyoffset(queryOffsetResult.getIndexLastUpdatePhyoffset());
             queryMessageResult.setIndexLastUpdateTimestamp(queryOffsetResult.getIndexLastUpdateTimestamp());
@@ -914,7 +939,7 @@ public class DefaultMessageStore implements MessageStore {
                 try {
 
                     boolean match = true;
-                    MessageExt msg = this.lookMessageByOffset(offset);
+                    MessageExt msg = this.lookMessageByOffset(offset);  // 从物理偏移上反序列化得到消息
                     if (0 == m) {
                         lastQueryMsgTime = msg.getStoreTimestamp();
                     }
@@ -957,11 +982,13 @@ public class DefaultMessageStore implements MessageStore {
         return queryMessageResult;
     }
 
+    // 更新新的 master address
     @Override
     public void updateHaMasterAddress(String newAddr) {
         this.haService.updateMasterAddress(newAddr);
     }
 
+    // slave 落后了多少
     @Override
     public long slaveFallBehindMuch() {
         return this.commitLog.getMaxOffset() - this.haService.getPush2SlaveMaxOffset().get();
@@ -972,6 +999,7 @@ public class DefaultMessageStore implements MessageStore {
         return this.systemClock.now();
     }
 
+    // 清理无用的 topicQueueTable
     @Override
     public int cleanUnusedTopic(Set<String> topics) {
         Iterator<Entry<String, ConcurrentMap<Integer, ConsumeQueue>>> it = this.consumeQueueTable.entrySet().iterator();
@@ -999,6 +1027,7 @@ public class DefaultMessageStore implements MessageStore {
         return 0;
     }
 
+    // 清理过期的 ConsumeQueue，清理最大物理 offset 小于 CommitLog 的最小 offset 的 ConsumeQueue
     public void cleanExpiredConsumerQueue() {
         long minCommitLogOffset = this.commitLog.getMinOffset();
 
@@ -1010,8 +1039,8 @@ public class DefaultMessageStore implements MessageStore {
                 ConcurrentMap<Integer, ConsumeQueue> queueTable = next.getValue();
                 Iterator<Entry<Integer, ConsumeQueue>> itQT = queueTable.entrySet().iterator();
                 while (itQT.hasNext()) {
-                    Entry<Integer, ConsumeQueue> nextQT = itQT.next();
-                    long maxCLOffsetInConsumeQueue = nextQT.getValue().getLastOffset();
+                    Entry<Integer, ConsumeQueue> nextQT = itQT.next();  // queueId，ConsumeQueue
+                    long maxCLOffsetInConsumeQueue = nextQT.getValue().getLastOffset();  // 拿物理偏移
 
                     if (maxCLOffsetInConsumeQueue == -1) {
                         log.warn("maybe ConsumeQueue was created just now. topic={} queueId={} maxPhysicOffset={} minLogicOffset={}.",
@@ -1043,6 +1072,7 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    // 获取消息 Id 和逻辑位点的 Map
     public Map<String, Long> getMessageIds(final String topic, final int queueId, long minOffset, long maxOffset,
         SocketAddress storeHost) {
         Map<String, Long> messageIds = new HashMap<String, Long>();
@@ -1139,6 +1169,7 @@ public class DefaultMessageStore implements MessageStore {
         this.commitLog.setConfirmOffset(phyOffset);
     }
 
+    // 从 CommitLog 的 commitLogOffset 位置取出消息，反序列化为 MessageExt
     public MessageExt lookMessageByOffset(long commitLogOffset, int size) {
         SelectMappedBufferResult sbr = this.commitLog.getMessage(commitLogOffset, size);
         if (null != sbr) {
@@ -1196,21 +1227,23 @@ public class DefaultMessageStore implements MessageStore {
 
     // 检查
     private boolean checkInDiskByCommitOffset(long offsetPy, long maxOffsetPy) {
+        // 0.4 * TOTAL_PHYSICAL_MEMORY_SIZE
         long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0));
         return (maxOffsetPy - offsetPy) > memory;
     }
 
     // 这个批次是否 full 了
     private boolean isTheBatchFull(int sizePy, int maxMsgNums, int bufferTotal, int messageTotal, boolean isInDisk) {
-
+        // 消息数量为 0 或者所有消息加起来的 size 为 0
         if (0 == bufferTotal || 0 == messageTotal) {
             return false;
         }
-
+        // 消息数量到上限了
         if (maxMsgNums <= messageTotal) {
             return true;
         }
 
+        // 在磁盘上
         if (isInDisk) {
             if ((bufferTotal + sizePy) > this.messageStoreConfig.getMaxTransferBytesOnMessageInDisk()) {
                 return true;

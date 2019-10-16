@@ -895,6 +895,7 @@ public class CommitLog {
         return -1;
     }
 
+    // 获取指定 offset 处的消息
     public SelectMappedBufferResult getMessage(final long offset, final int size) {
         int mappedFileSize = this.defaultMessageStore.getMessageStoreConfig().getMappedFileSizeCommitLog();
         MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset, offset == 0);  // 拿到 offset 对应的 MappedFile

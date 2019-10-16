@@ -83,6 +83,7 @@ public class GetMessageResult {
         return messageBufferList;
     }
 
+    // 得到一条 msg
     public void addMessage(final SelectMappedBufferResult mapedBuffer) {
         this.messageMapedList.add(mapedBuffer);
         this.messageBufferList.add(mapedBuffer.getByteBuffer());
