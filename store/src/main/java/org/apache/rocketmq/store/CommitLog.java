@@ -152,7 +152,7 @@ public class CommitLog {
         return this.mappedFileQueue.remainHowManyDataToFlush();
     }
 
-    // delete 过期的 MappedFile
+    // delete 过期的 MappedFile，可以从 File 对象获取 lastModified
     public int deleteExpiredFile(
         final long expiredTime,
         final int deleteFilesInterval,
@@ -601,7 +601,7 @@ public class CommitLog {
                 if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
                     msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
                 }
-
+                // 将消息 send 到 SCHEDULE_TOPIC_XXXX 这个 topic 中去，然后 queueId 和延迟级别有关
                 topic = ScheduleMessageService.SCHEDULE_TOPIC;  // 设置延迟发送的 topic
                 queueId = ScheduleMessageService.delayLevel2QueueId(msg.getDelayTimeLevel());  // 设置延迟发送的 queueId
 
@@ -1296,10 +1296,10 @@ public class CommitLog {
             // Record ConsumeQueue information
             keyBuilder.setLength(0);
             keyBuilder.append(msgInner.getTopic());
-            keyBuilder.append('-');
+            keyBuilder.append('-');  // 是我的话，这个 - 也会抽成 const
             keyBuilder.append(msgInner.getQueueId());
             String key = keyBuilder.toString();
-            // 拼接 topic-queueId
+            // 拼接 topic-queueId，从 topicQueueTable 中获取 ${topic}-${queueId} 的逻辑位点
             Long queueOffset = CommitLog.this.topicQueueTable.get(key);
             if (null == queueOffset) {
                 queueOffset = 0L;
@@ -1441,7 +1441,7 @@ public class CommitLog {
         // append 一批消息
         public AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer, final int maxBlank,
             final MessageExtBatch messageExtBatch) {
-            byteBuffer.mark();  // mark 当前 ByteBuffer 的 position
+            byteBuffer.mark();  // mark 当前 ByteBuffer 的 position，因为 MessageExtBatch 里可能有多条消息
             //physical offset
             long wroteOffset = fileFromOffset + byteBuffer.position();
             // Record ConsumeQueue information
@@ -1460,7 +1460,7 @@ public class CommitLog {
             int msgNum = 0;
             msgIdBuilder.setLength(0);
             final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
-            ByteBuffer messagesByteBuff = messageExtBatch.getEncodedBuff();
+            ByteBuffer messagesByteBuff = messageExtBatch.getEncodedBuff();  // 获取包裹多条消息的 ByteBuffer
             this.resetByteBuffer(hostHolder, 8);
             ByteBuffer storeHostBytes = messageExtBatch.getStoreHostBytes(hostHolder);
             messagesByteBuff.mark();
@@ -1517,7 +1517,7 @@ public class CommitLog {
             messageExtBatch.setEncodedBuff(null);
             AppendMessageResult result = new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, totalMsgLen, msgIdBuilder.toString(),
                 messageExtBatch.getStoreTimestamp(), beginQueueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
-            result.setMsgNum(msgNum);
+            result.setMsgNum(msgNum);  // 这次 append 了多少消息
             CommitLog.this.topicQueueTable.put(key, queueOffset);
 
             return result;
@@ -1547,7 +1547,7 @@ public class CommitLog {
         }
 
         public ByteBuffer encode(final MessageExtBatch messageExtBatch) {
-            msgBatchMemory.clear(); //not thread-safe
+            msgBatchMemory.clear(); //not thread-safe，使用了 ThreadLocal
             int totalMsgLen = 0;
             ByteBuffer messagesByteBuff = messageExtBatch.wrap();  // 包裹消息 body
             while (messagesByteBuff.hasRemaining()) {

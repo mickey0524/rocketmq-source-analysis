@@ -385,7 +385,7 @@ public class HAService {
             return needHeart;
         }
 
-        // 上报 slave 的最大 offset
+        // slave 上报最大 offset
         private boolean reportSlaveMaxOffset(final long maxOffset) {
             this.reportOffset.position(0);
             this.reportOffset.limit(8);
@@ -408,6 +408,7 @@ public class HAService {
         }
 
         private void reallocateByteBuffer() {
+            // 可能只传过来 item 的一部分
             int remain = READ_MAX_BUFFER_SIZE - this.dispatchPosition;
             if (remain > 0) {
                 this.byteBufferRead.position(this.dispatchPosition);
@@ -512,7 +513,7 @@ public class HAService {
             return true;
         }
 
-        // 报告 slave 的最大 offset 增加了
+        // slave 报告最大 offset 增加了
         private boolean reportSlaveMaxOffsetPlus() {
             boolean result = true;
             long currentPhyOffset = HAService.this.defaultMessageStore.getMaxPhyOffset();

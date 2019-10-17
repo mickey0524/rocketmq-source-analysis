@@ -79,7 +79,7 @@ public class MappedFileQueue {
         }
     }
 
-    // 返回第一个更新时间大于 timestamp 的 MappedFile
+    // 返回第一个更新时间大于 timestamp 的 MappedFile，否则返回 List 中最后一个 MappedFile
     public MappedFile getMappedFileByTime(final long timestamp) {
         Object[] mfs = this.copyMappedFiles(0);
 
@@ -108,6 +108,7 @@ public class MappedFileQueue {
         return mfs;
     }
 
+    // 将 offset 之后的 MappedFile destory
     public void truncateDirtyFiles(long offset) {
         List<MappedFile> willRemoveFiles = new ArrayList<MappedFile>();
 
@@ -149,6 +150,7 @@ public class MappedFileQueue {
             }
 
             try {
+                // 从 mappedFiles 中删除 files 中的 MappedFile
                 if (!this.mappedFiles.removeAll(files)) {
                     log.error("deleteExpiredFile remove failed.");
                 }
@@ -199,7 +201,7 @@ public class MappedFileQueue {
         if (this.mappedFiles.isEmpty())
             return 0;
 
-        long committed = this.flushedWhere;
+        long committed = this.flushedWhere;  // 不懂这里的命名为啥要命 committed，明明是 flush。。。
         if (committed != 0) {
             // 拿 List 最后一个 MappedFile
             MappedFile mappedFile = this.getLastMappedFile(0, false);
@@ -216,6 +218,7 @@ public class MappedFileQueue {
         long createOffset = -1;  // startOffset 对应的 MappedFile 的 createOffset
         MappedFile mappedFileLast = getLastMappedFile();  // 获取 index 为 size() - 1 的 MappedFile
 
+        // array 中一个 MappedFile 都没有
         if (mappedFileLast == null) {
             // startOffset - 取余
             createOffset = startOffset - (startOffset % this.mappedFileSize);
@@ -282,7 +285,7 @@ public class MappedFileQueue {
         return mappedFileLast;
     }
 
-    // 重置 offset
+    // 重置 offset，这个方法没啥用
     public boolean resetOffset(long offset) {
         // 拿最后一个 MapedFile
         MappedFile mappedFileLast = getLastMappedFile();
@@ -395,7 +398,7 @@ public class MappedFileQueue {
                         files.add(mappedFile);
                         deleteCount++;
 
-                        // 一次最多删除的对象数
+                        // 一次最多删除的对象数，用 deleteCount 比较不就好
                         if (files.size() >= DELETE_FILES_BATCH_MAX) {
                             break;
                         }
@@ -438,7 +441,7 @@ public class MappedFileQueue {
                 // MappedBuffer 映射着 fileChannel，获取最大的 offset
                 SelectMappedBufferResult result = mappedFile.selectMappedBuffer(this.mappedFileSize - unitSize);
                 if (result != null) {
-                    // 从 fileChannel 中获取内容
+                    // 获取 ConsumeQueue 的 MappedFile 中最后一个 index 对应的 msg 的物理位置
                     long maxOffsetInLogicQueue = result.getByteBuffer().getLong();
                     result.release();
                     destroy = maxOffsetInLogicQueue < offset;
@@ -473,7 +476,7 @@ public class MappedFileQueue {
         boolean result = true;
         MappedFile mappedFile = this.findMappedFileByOffset(this.flushedWhere, this.flushedWhere == 0);
         if (mappedFile != null) {
-            long tmpTimeStamp = mappedFile.getStoreTimestamp();
+            long tmpTimeStamp = mappedFile.getStoreTimestamp();  // 这个是 mappedFile 最近 append 的 msg 的 storeTimestamp 
             int offset = mappedFile.flush(flushLeastPages);
             // 刷盘处理以后，where 就变成了已经刷盘到哪儿的位置
             long where = mappedFile.getFileFromOffset() + offset;

@@ -59,6 +59,8 @@ public class AllocateMappedFileService extends ServiceThread {
         int canSubmitRequests = 2;
         // 使用了 TransientStorePool
         if (this.messageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
+            // 只有设置了允许快速结束以及当前 broker 是 master，才对 canSubmitRequests 赋值
+            // 默认 isFastFailIfNoBufferInStorePool 是 false 的
             if (this.messageStore.getMessageStoreConfig().isFastFailIfNoBufferInStorePool()
                 && BrokerRole.SLAVE != this.messageStore.getMessageStoreConfig().getBrokerRole()) { //if broker is slave, don't fast fail even no buffer in pool
                 canSubmitRequests = this.messageStore.getTransientStorePool().availableBufferNums() - this.requestQueue.size();
@@ -166,6 +168,7 @@ public class AllocateMappedFileService extends ServiceThread {
             // 获得堆顶的 AllocateRequest
             req = this.requestQueue.take();
             AllocateRequest expectedRequest = this.requestTable.get(req.getFilePath());
+            // timeout，request 被删除了
             if (null == expectedRequest) {
                 log.warn("this mmap request expired, maybe cause timeout " + req.getFilePath() + " "
                     + req.getFileSize());
@@ -202,7 +205,7 @@ public class AllocateMappedFileService extends ServiceThread {
                 }
 
                 // pre write mappedFile
-                // fileSize 超过 1G
+                // fileSize 超过 1G，其实就是 CommitLog
                 if (mappedFile.getFileSize() >= this.messageStore.getMessageStoreConfig()
                     .getMappedFileSizeCommitLog()
                     &&
