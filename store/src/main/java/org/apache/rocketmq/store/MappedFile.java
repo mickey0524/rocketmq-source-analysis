@@ -126,7 +126,7 @@ public class MappedFile extends ReferenceResource {
         String methodName = "viewedBuffer";
         Method[] methods = buffer.getClass().getMethods();  // ByteBuffer 是一个抽象类，利用反射获取所有 public 的方法
         for (int i = 0; i < methods.length; i++) {
-            // 优先 attachment
+            // 优先 attachment，执行过 slice 方法的 ByteBuffer，会有一个 att 字段标识之前的 buffer
             if (methods[i].getName().equals("attachment")) {
                 methodName = "attachment";
                 break;
@@ -207,7 +207,7 @@ public class MappedFile extends ReferenceResource {
         return appendMessagesInner(messageExtBatch, cb);
     }
 
-    // 追加写入 msg
+    // 追加写入 msg，这个方法只有在 CommitLog 被写入的时候会被调用
     public AppendMessageResult appendMessagesInner(final MessageExt messageExt, final AppendMessageCallback cb) {
         assert messageExt != null;
         assert cb != null;
@@ -216,6 +216,8 @@ public class MappedFile extends ReferenceResource {
 
         if (currentPos < this.fileSize) {
             // 优先 writeBuffer
+            // writeBuffer 和 mappedByteBuffer 的 position 始终为 0，我在这也疑惑了一会
+            // 因为所有有关这两个 buffer 的操作都使用了 slice 操作，对 slice 之后的 buffer 操作可以映射回原 buffer
             ByteBuffer byteBuffer = writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
             // 这里一定要设置 position，否则会覆盖
             byteBuffer.position(currentPos);
@@ -228,7 +230,7 @@ public class MappedFile extends ReferenceResource {
                 return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
             }
             this.wrotePosition.addAndGet(result.getWroteBytes());
-            this.storeTimestamp = result.getStoreTimestamp();
+            this.storeTimestamp = result.getStoreTimestamp();  // 消息的 storeTimestamp
             return result;
         }
         log.error("MappedFile.appendMessage return null, wrotePosition: {} fileSize: {}", currentPos, this.fileSize);
@@ -239,7 +241,7 @@ public class MappedFile extends ReferenceResource {
         return this.fileFromOffset;
     }
 
-    // 传入的是一个 byte 数组
+    // 传入的是一个 byte 数组，ConsumeQueue 写入的时候调用
     public boolean appendMessage(final byte[] data) {
         int currentPos = this.wrotePosition.get();
 
@@ -294,6 +296,8 @@ public class MappedFile extends ReferenceResource {
                 try {
                     // We only append data to fileChannel or mappedByteBuffer, never both.
                     // 数据要么被 append 到 fileChannel，要么 mappedByteBuffer，不会到两个
+                    // put CommitLog 的时候，如果有 writeBuffer，写 writeBuffer，否则写 mappedByteBuffer
+                    // put ConsumeQueue 的时候，直接 append byte[] 数组的，直接写 fileChannel
                     if (writeBuffer != null || this.fileChannel.position() != 0) {
                         this.fileChannel.force(false);
                     } else {
@@ -402,7 +406,7 @@ public class MappedFile extends ReferenceResource {
         return this.fileSize == this.wrotePosition.get();
     }
 
-    // 本方法给出 size
+    // 本方法给出 size，调用方使用完 SelectMappedBufferResult 之后，需要进行 release 操作，因为先执行了 hold 方法
     public SelectMappedBufferResult selectMappedBuffer(int pos, int size) {
         int readPosition = getReadPosition();
         if ((pos + size) <= readPosition) {
@@ -441,6 +445,7 @@ public class MappedFile extends ReferenceResource {
         return null;
     }
 
+    // 在 ReferenceResource 的 release 中被调用
     @Override
     public boolean cleanup(final long currentRef) {
         // 还没有 shutdown，不能 cleanup
@@ -524,7 +529,7 @@ public class MappedFile extends ReferenceResource {
         int flush = 0;
         long time = System.currentTimeMillis();
         for (int i = 0, j = 0; i < this.fileSize; i += MappedFile.OS_PAGE_SIZE, j++) {
-            byteBuffer.put(i, (byte) 0);
+            byteBuffer.put(i, (byte) 0);  // 绝对路径写入，写入 0 是无所谓的，因为 allocate 的空间都是 0
             // force flush when flush disk type is sync
             // 同步刷盘
             if (type == FlushDiskType.SYNC_FLUSH) {
@@ -568,6 +573,7 @@ public class MappedFile extends ReferenceResource {
         return mappedByteBuffer;
     }
 
+    // 其实 MappedFile 文件中有很多地方可以使用 sliceByteBuffer 方法却没有使用
     public ByteBuffer sliceByteBuffer() {
         return this.mappedByteBuffer.slice();
     }
