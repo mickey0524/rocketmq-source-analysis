@@ -1719,7 +1719,7 @@ public class DefaultMessageStore implements MessageStore {
                     return true;
                 }
             }
-
+            // 为啥 ConsumeQueue 的磁盘使用率过大，也需要删除 CommitLog 呢？
             {
                 // ConsumeQueue 的存储路径
                 String storePathLogics = StorePathConfigHelper

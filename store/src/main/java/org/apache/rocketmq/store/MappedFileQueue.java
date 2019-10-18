@@ -425,7 +425,7 @@ public class MappedFileQueue {
         return deleteCount;
     }
 
-    // 根据 offset 删除 MapedFile（ConsumeQueue 中调用了）
+    // 根据 offset 删除 MappedFile（ConsumeQueue 中调用了）
     public int deleteExpiredFileByOffset(long offset, int unitSize) {
         Object[] mfs = this.copyMappedFiles(0);
 

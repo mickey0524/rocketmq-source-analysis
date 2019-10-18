@@ -533,6 +533,7 @@ public class HAService {
         private boolean connectMaster() throws ClosedChannelException {
             if (null == socketChannel) {
                 String addr = this.masterAddress.get();
+                // 这里存疑，master broker 自己也会启动啊，应该是 master broker 的 masterAddress 里面是空的
                 if (addr != null) {
 
                     SocketAddress socketAddress = RemotingUtil.string2SocketAddress(addr);

@@ -80,7 +80,7 @@ public class HAConnection {
         return socketChannel;
     }
 
-    // master 从 slave 读
+    // master 从 slave 读，slave 会定时同步 offset，在收到 master 的包后，也会回一个 offest 的 ack
     class ReadSocketService extends ServiceThread {
         private static final int READ_MAX_BUFFER_SIZE = 1024 * 1024;  // 1M
         private final Selector selector;
@@ -263,6 +263,7 @@ public class HAConnection {
                         long interval =
                             HAConnection.this.haService.getDefaultMessageStore().getSystemClock().now() - this.lastWriteTimestamp;
 
+                        // 心跳
                         if (interval > HAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig()
                             .getHaSendHeartbeatInterval()) {
 
@@ -308,7 +309,7 @@ public class HAConnection {
                         this.lastWriteOver = this.transferData();
                     } else {
 
-                        HAConnection.this.haService.getWaitNotifyObject().allWaitForRunning(100);  // 等待
+                        HAConnection.this.haService.getWaitNotifyObject().allWaitForRunning(100);  // 等待 CommitLog handleHA 方法 wakeupAll
                     }
                 } catch (Exception e) {
 

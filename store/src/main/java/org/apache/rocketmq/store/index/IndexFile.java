@@ -52,7 +52,7 @@ public class IndexFile {
         this.indexNum = indexNum;
 
         ByteBuffer byteBuffer = this.mappedByteBuffer.slice();
-        this.indexHeader = new IndexHeader(byteBuffer);
+        this.indexHeader = new IndexHeader(byteBuffer);  // 传递进去的是 slice 过的，IndexHeader 中都是操作绝对下标的
 
         if (endPhyOffset > 0) {
             this.indexHeader.setBeginPhyOffset(endPhyOffset);
@@ -133,7 +133,7 @@ public class IndexFile {
                 this.mappedByteBuffer.putInt(absIndexPos + 4 + 8, (int) timeDiff);
                 this.mappedByteBuffer.putInt(absIndexPos + 4 + 8 + 4, slotValue);  // 解决哈希碰撞
 
-                // 4个字节
+                // 4个字节，slot 更新为新的 indexCount，之前 slot 中的 index 写入到了新的 key 对应的 indexSize 的第 16 个位置
                 this.mappedByteBuffer.putInt(absSlotPos, this.indexHeader.getIndexCount());
 
                 if (this.indexHeader.getIndexCount() <= 1) {
@@ -247,6 +247,7 @@ public class IndexFile {
                             phyOffsets.add(phyOffsetRead);
                         }
 
+                        // timeRead < begin 代表本条 storeTimestamp 都小于 begin，之前的就更不用考虑了
                         if (prevIndexRead <= invalidIndex
                             || prevIndexRead > this.indexHeader.getIndexCount()
                             || prevIndexRead == nextIndexToRead || timeRead < begin) {

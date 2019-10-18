@@ -46,8 +46,8 @@ public class ConsumeQueue {
 
     private final String storePath;
     private final int mappedFileSize;
-    private long maxPhysicOffset = -1;
-    private volatile long minLogicOffset = 0;
+    private long maxPhysicOffset = -1;  // CQ 对应的 MappedFile 最大的物理偏移，在 put msg index 的时候改变
+    private volatile long minLogicOffset = 0;  // CQ 最小的逻辑偏移，在 MappedFile destory 的时候改变
     private ConsumeQueueExt consumeQueueExt = null;
 
     // 构造函数
@@ -69,7 +69,7 @@ public class ConsumeQueue {
             + File.separator + topic
             + File.separator + queueId;
 
-        this.mappedFileQueue = new MappedFileQueue(queueDir, mappedFileSize, null);
+        this.mappedFileQueue = new MappedFileQueue(queueDir, mappedFileSize, null);  // ConsumeQueue 不享受 AllocateMappedFileService
 
         this.byteBufferIndex = ByteBuffer.allocate(CQ_STORE_UNIT_SIZE);   // 分配堆内存
 
@@ -94,7 +94,7 @@ public class ConsumeQueue {
         return result;
     }
 
-    // 恢复
+    // 恢复位点，因为 MappedFileQueue load 的时候，都是将位点设成了 MappedFileSize
     public void recover() {
         final List<MappedFile> mappedFiles = this.mappedFileQueue.getMappedFiles();
         if (!mappedFiles.isEmpty()) {
@@ -162,6 +162,7 @@ public class ConsumeQueue {
         }
     }
 
+    // 获得逻辑位点，storeTimestamp 最接近 timestamp 的
     public long getOffsetInQueueByTime(final long timestamp) {
         MappedFile mappedFile = this.mappedFileQueue.getMappedFileByTime(timestamp);  // 找到第一个更新时间大于 ts 的，否则返回最后一个 MappedFile
         if (mappedFile != null) {
@@ -306,7 +307,7 @@ public class ConsumeQueue {
             this.consumeQueueExt.truncateByMaxAddress(maxExtAddr);
         }
     }
-    // 获取最后的 offset
+    // 获取最后的物理 offset
     public long getLastOffset() {
         long lastOffset = -1;
 
