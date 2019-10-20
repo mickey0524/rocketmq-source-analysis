@@ -50,6 +50,7 @@ public class FileWatchService extends ServiceThread {
         this.fileCurrentHash = new ArrayList<>();
 
         for (int i = 0; i < watchFiles.length; i++) {
+            // file 名字不为空，文件存在
             if (StringUtils.isNotEmpty(watchFiles[i]) && new File(watchFiles[i]).exists()) {
                 this.watchFiles.add(watchFiles[i]);
                 this.fileCurrentHash.add(hash(watchFiles[i]));
@@ -78,6 +79,7 @@ public class FileWatchService extends ServiceThread {
                         log.warn(this.getServiceName() + " service has exception when calculate the file hash. ", ignored);
                         continue;
                     }
+                    // 根据 hash 值的改变来判断文件是否发生了变化
                     if (!newHash.equals(fileCurrentHash.get(i))) {
                         fileCurrentHash.set(i, newHash);
                         listener.onChanged(watchFiles.get(i));
@@ -90,6 +92,7 @@ public class FileWatchService extends ServiceThread {
         log.info(this.getServiceName() + " service end");
     }
 
+    // 文件全部 byte 的 hash 值
     private String hash(String filePath) throws IOException, NoSuchAlgorithmException {
         Path path = Paths.get(filePath);
         md.update(Files.readAllBytes(path));
@@ -97,6 +100,7 @@ public class FileWatchService extends ServiceThread {
         return UtilAll.bytes2string(hash);
     }
 
+    // 监听器的接口，当 path 对应的文件发生了变化，调用 onChanged 函数
     public interface Listener {
         /**
          * Will be called when the target files are changed

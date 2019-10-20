@@ -28,6 +28,7 @@ import java.util.Properties;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+// 管理一些配置
 public class Configuration {
 
     private final InternalLogger log;  // Logger
@@ -118,6 +119,7 @@ public class Configuration {
         assert object != null;
         // 我觉得这用反射做不是很能理解。。。
         // 直接在 NamesrvController 中调用函数获取，然后 set 一下 storePath 就行。。
+        // 可能是由于 object 中的 fieldName 会改变？
         try {
             readWriteLock.writeLock().lockInterruptibly();
 

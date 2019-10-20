@@ -60,6 +60,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 // broker 对外请求的类
 // 封装 Netty
+// 其实就是和 namesrv 交互以及 slave 和 master 之间的交互（最后四个方法，获取 topicConfig 等）
 public class BrokerOuterAPI {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final RemotingClient remotingClient;
@@ -154,7 +155,7 @@ public class BrokerOuterAPI {
                     @Override
                     public void run() {
                         try {
-                            RegisterBrokerResult result = registerBroker(namesrvAddr, oneway, timeoutMills,requestHeader,body);
+                            RegisterBrokerResult result = registerBroker(namesrvAddr, oneway, timeoutMills, requestHeader, body);
                             if (result != null) {
                                 registerBrokerResultList.add(result);
                             }
@@ -178,6 +179,7 @@ public class BrokerOuterAPI {
         return registerBrokerResultList;
     }
 
+    // 向指定的 namesrv 注册 broker
     private RegisterBrokerResult registerBroker(
         final String namesrvAddr,
         final boolean oneway,
@@ -271,6 +273,7 @@ public class BrokerOuterAPI {
     }
 
     // 判断 DataVersion 是否 change
+    // 这里为啥不和 register 和 unregister 两个方法一样，分离出一个对 namesrv 的方法。。。
     public List<Boolean> needRegister(
         final String clusterName,
         final String brokerAddr,
@@ -304,6 +307,7 @@ public class BrokerOuterAPI {
                                     changed = queryDataVersionResponseHeader.getChanged();
                                     byte[] body = response.getBody();
                                     if (body != null) {
+                                        // 从 body 中反序列化 DataVersion，再确认一次
                                         nameServerDataVersion = DataVersion.decode(body, DataVersion.class);
                                         if (!topicConfigWrapper.getDataVersion().equals(nameServerDataVersion)) {
                                             changed = true;
@@ -343,6 +347,7 @@ public class BrokerOuterAPI {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_ALL_TOPIC_CONFIG, null);
 
         // 走 VIP 通道，brokerController 会启动两个 server 端口，10909 和 10911，这里走 fast server
+        // 这个 3000 为啥不抽成常量
         RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(true, addr), request, 3000);
         assert response != null;
         switch (response.getCode()) {
@@ -361,6 +366,7 @@ public class BrokerOuterAPI {
         final String addr) throws InterruptedException, RemotingTimeoutException,
         RemotingSendRequestException, RemotingConnectException, MQBrokerException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_ALL_CONSUMER_OFFSET, null);
+        // 同样，这个 3000 为啥不抽常量，硬编码代码洁癖受不了啊-。-
         RemotingCommand response = this.remotingClient.invokeSync(addr, request, 3000);
         assert response != null;
         switch (response.getCode()) {
@@ -379,6 +385,7 @@ public class BrokerOuterAPI {
         final String addr) throws InterruptedException, RemotingTimeoutException, RemotingSendRequestException,
         RemotingConnectException, MQBrokerException, UnsupportedEncodingException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_ALL_DELAY_OFFSET, null);
+        // 再一次 3000 警告⚠️
         RemotingCommand response = this.remotingClient.invokeSync(addr, request, 3000);
         assert response != null;
         switch (response.getCode()) {
@@ -397,6 +404,7 @@ public class BrokerOuterAPI {
         final String addr) throws InterruptedException, RemotingTimeoutException,
         RemotingSendRequestException, RemotingConnectException, MQBrokerException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_ALL_SUBSCRIPTIONGROUP_CONFIG, null);
+        // 最后一次 3000 警告⚠️
         RemotingCommand response = this.remotingClient.invokeSync(addr, request, 3000);
         assert response != null;
         switch (response.getCode()) {

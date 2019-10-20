@@ -111,6 +111,7 @@ public class SlaveSynchronize {
                         StorePathConfigHelper.getDelayOffsetStorePath(this.brokerController
                             .getMessageStoreConfig().getStorePathRootDir());
                     try {
+                        // 直接将 String 落盘
                         MixAll.string2File(delayOffset, fileName);
                     } catch (IOException e) {
                         log.error("Persist file Exception, {}", fileName, e);

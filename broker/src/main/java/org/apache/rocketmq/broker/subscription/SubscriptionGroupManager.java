@@ -99,6 +99,7 @@ public class SubscriptionGroupManager extends ConfigManager {
         }
     }
 
+    // 更新 SubscriptionGroupConfig
     public void updateSubscriptionGroupConfig(final SubscriptionGroupConfig config) {
         // subscriptionGroupTable 是 CHM，直接 put 不需要上锁
         SubscriptionGroupConfig old = this.subscriptionGroupTable.put(config.getGroupName(), config);
@@ -113,6 +114,7 @@ public class SubscriptionGroupManager extends ConfigManager {
         this.persist();
     }
 
+    // 停止 groupName 对应的消费组的消费
     public void disableConsume(final String groupName) {
         SubscriptionGroupConfig old = this.subscriptionGroupTable.get(groupName);
         if (old != null) {
@@ -126,6 +128,7 @@ public class SubscriptionGroupManager extends ConfigManager {
         SubscriptionGroupConfig subscriptionGroupConfig = this.subscriptionGroupTable.get(group);
         // 没有当前 group 的配置
         if (null == subscriptionGroupConfig) {
+            // 如果配置允许自动创建缺失的 group 或者 group 是系统消费组
             if (brokerController.getBrokerConfig().isAutoCreateSubscriptionGroup() || MixAll.isSysConsumerGroup(group)) {
                 subscriptionGroupConfig = new SubscriptionGroupConfig();
                 subscriptionGroupConfig.setGroupName(group);

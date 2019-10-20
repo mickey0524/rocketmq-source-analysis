@@ -18,7 +18,7 @@ package org.apache.rocketmq.common.sysflag;
 
 public class TopicSysFlag {
 
-    private final static int FLAG_UNIT = 0x1 << 0;  // topic 失败后是否不重试，非 %RETRY% 开头的topic
+    private final static int FLAG_UNIT = 0x1 << 0;  // topic 失败后不重试，非 %RETRY% 开头的topic
 
     private final static int FLAG_UNIT_SUB = 0x1 << 1;  // topic 失败后重试，%RETRY% 开头的topic
 

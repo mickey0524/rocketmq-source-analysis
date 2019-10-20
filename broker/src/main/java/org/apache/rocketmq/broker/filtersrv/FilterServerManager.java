@@ -38,7 +38,7 @@ import org.apache.rocketmq.remoting.common.RemotingUtil;
 // rocketmq 默认为客户端自己进行消息过滤，也可以使用 server filter
 // broker 所在的机器会启动多个 FilterServer 过滤线程
 // Consumer 启动后，会向 FilterServer 上传一个过滤的 Java 类
-// Consumer 从 FilterServer 拉消息，FilterServer 将请求转収给 Broker，FilterServer 从 Broker 收到消息后，挄照
+// Consumer 从 FilterServer 拉消息，FilterServer 将请求转给 Broker，FilterServer 从 Broker 收到消息后，挄照
 // Consumer 上传的 Java 过滤程序做过滤，过滤完成后返回给 Consumer
 // FilterServerManager 来管理服务端消息过滤
 public class FilterServerManager {

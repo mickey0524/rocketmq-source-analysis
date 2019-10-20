@@ -481,6 +481,7 @@ public class DefaultMessageStore implements MessageStore {
         return result;
     }
 
+    // CommitLog Put msg 上锁时间过长
     @Override
     public boolean isOSPageCacheBusy() {
         long begin = this.getCommitLog().getBeginTimeInLock();

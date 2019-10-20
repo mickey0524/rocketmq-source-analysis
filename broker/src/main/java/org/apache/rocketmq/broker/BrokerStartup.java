@@ -122,6 +122,7 @@ public class BrokerStartup {
                 messageStoreConfig.setAccessMessageInMemoryMaxRatio(ratio);
             }
 
+            // 设置了 configFile
             if (commandLine.hasOption('c')) {
                 String file = commandLine.getOptionValue('c');
                 if (file != null) {
@@ -132,6 +133,7 @@ public class BrokerStartup {
                     properties.load(in);
 
                     properties2SystemEnv(properties);
+                    // 利用反射从 properties 中获取 v，写入四个 config 中
                     MixAll.properties2Object(properties, brokerConfig);
                     MixAll.properties2Object(properties, nettyServerConfig);
                     MixAll.properties2Object(properties, nettyClientConfig);
@@ -142,7 +144,7 @@ public class BrokerStartup {
                 }
             }
             
-            // 将命令行上的散配置写入 brokerConfig
+            // 将命令行上的散配置写入 brokerConfig，从这里可以看到命令行的优先级更高
             MixAll.properties2Object(ServerUtil.commandLine2Properties(commandLine), brokerConfig);
 
             if (null == brokerConfig.getRocketmqHome()) {
@@ -185,7 +187,7 @@ public class BrokerStartup {
                     break;
             }
 
-            messageStoreConfig.setHaListenPort(nettyServerConfig.getListenPort() + 1);
+            messageStoreConfig.setHaListenPort(nettyServerConfig.getListenPort() + 1);  // 10912
             LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
             JoranConfigurator configurator = new JoranConfigurator();
             configurator.setContext(lc);
@@ -261,6 +263,7 @@ public class BrokerStartup {
         return null;
     }
 
+    // 从 Properties 取出 key 存入系统 kv
     private static void properties2SystemEnv(Properties properties) {
         if (properties == null) {
             return;

@@ -29,6 +29,7 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.ConsumeQueueExt;
 
+// 拉取请求的服务
 public class PullRequestHoldService extends ServiceThread {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final String TOPIC_QUEUEID_SEPARATOR = "@";  // topic 和 queueId 的分隔符
@@ -41,6 +42,7 @@ public class PullRequestHoldService extends ServiceThread {
         this.brokerController = brokerController;
     }
 
+    // 对 topic@queueId 新增一个 PullRequest
     public void suspendPullRequest(final String topic, final int queueId, final PullRequest pullRequest) {
         String key = this.buildKey(topic, queueId);
         ManyPullRequest mpr = this.pullRequestTable.get(key);
@@ -105,7 +107,7 @@ public class PullRequestHoldService extends ServiceThread {
             if (2 == kArray.length) {
                 String topic = kArray[0];
                 int queueId = Integer.parseInt(kArray[1]);
-                // 获取最大的 offset
+                // 获取 ConsumeQueue 中最大的逻辑位点（不是 offset，是 offset / CQ_STORE_UNIT_SIZE）
                 final long offset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
                 try {
                     this.notifyMessageArriving(topic, queueId, offset);
@@ -116,6 +118,7 @@ public class PullRequestHoldService extends ServiceThread {
         }
     }
 
+    // 上报 topic + queueId 对应的 ConsumeQueue 的最大位点
     public void notifyMessageArriving(final String topic, final int queueId, final long maxOffset) {
         notifyMessageArriving(topic, queueId, maxOffset, null, 0, null, null);
     }
@@ -164,6 +167,7 @@ public class PullRequestHoldService extends ServiceThread {
                         continue;
                     }
 
+                    // 消费队列的最大逻辑位点比请求的位点要小，则重新加入到消费队列的 pullRequest 列表中去 ，等待下一轮处理
                     replayList.add(request);
                 }
 

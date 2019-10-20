@@ -18,6 +18,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+// 服务提供者
 public class ServiceProvider {
 
     private final static Logger LOG = LoggerFactory
@@ -54,6 +55,7 @@ public class ServiceProvider {
      * @param o may be null.
      * @return a string of form classname@hashcode, or "null" if param o is null.
      */
+    // 返回一个唯一标识 Object 的 string，string 中包括了 class 的名字
     protected static String objectId(Object o) {
         if (o == null) {
             return "null";
@@ -110,6 +112,7 @@ public class ServiceProvider {
                 } catch (java.io.UnsupportedEncodingException e) {
                     reader = new BufferedReader(new InputStreamReader(is));
                 }
+                // 从 Stream 中读取 serviceName，全部 initService
                 String serviceName = reader.readLine();
                 while (serviceName != null && !"".equals(serviceName)) {
                     LOG.info(
@@ -134,6 +137,7 @@ public class ServiceProvider {
         return services;
     }
 
+    // 从 name 中读取 serviceName，initService 第一个
     public static <T> T loadClass(String name, Class<?> clazz) {
         final InputStream is = getResourceAsStream(getContextClassLoader(), name);
         if (is != null) {

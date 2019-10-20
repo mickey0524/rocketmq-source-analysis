@@ -133,6 +133,7 @@ public class TopicConfigManager extends ConfigManager {
         }
         {
             if (this.brokerController.getBrokerConfig().isTraceTopicEnable()) {
+                // RMQ_SYS_TRACE_TOPIC
                 String topic = this.brokerController.getBrokerConfig().getMsgTraceTopicName();
                 TopicConfig topicConfig = new TopicConfig(topic);
                 this.systemTopicList.add(topic);
@@ -148,6 +149,7 @@ public class TopicConfigManager extends ConfigManager {
         return this.systemTopicList.contains(topic);
     }
 
+    // 获取系统 topic 的集合
     public Set<String> getSystemTopic() {
         return this.systemTopicList;
     }
@@ -173,14 +175,15 @@ public class TopicConfigManager extends ConfigManager {
             if (this.lockTopicConfigTable.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     topicConfig = this.topicConfigTable.get(topic);
-                    // getOrCreate
+                    // topicConfig 存在的话，直接返回
                     if (topicConfig != null)
                         return topicConfig;
                     
-                    // 为了拷贝 TopicConfig
+                    // 获取 defaultTopicConfig，为了拷贝 TopicConfig
                     TopicConfig defaultTopicConfig = this.topicConfigTable.get(defaultTopic);
                     if (defaultTopicConfig != null) {
                         if (defaultTopic.equals(MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC)) {
+                            // 如果不允许自行创建 topic 了，取消 AUTO_CREATE_TOPIC_KEY_TOPIC 的被继承权限
                             if (!this.brokerController.getBrokerConfig().isAutoCreateTopicEnable()) {
                                 defaultTopicConfig.setPerm(PermName.PERM_READ | PermName.PERM_WRITE);
                             }
@@ -202,7 +205,7 @@ public class TopicConfigManager extends ConfigManager {
                             topicConfig.setReadQueueNums(queueNums);
                             topicConfig.setWriteQueueNums(queueNums);
                             int perm = defaultTopicConfig.getPerm();
-                            perm &= ~PermName.PERM_INHERIT;
+                            perm &= ~PermName.PERM_INHERIT;  // 创建出来的 topic 不能被继承
                             topicConfig.setPerm(perm);
                             topicConfig.setTopicSysFlag(topicSysFlag);
                             topicConfig.setTopicFilterType(defaultTopicConfig.getTopicFilterType());
@@ -388,6 +391,7 @@ public class TopicConfigManager extends ConfigManager {
         this.persist();
     }
 
+    // KVTable 中包裹着一个 HashMap
     public void updateOrderTopicConfig(final KVTable orderKVTableFromNs) {
 
         if (orderKVTableFromNs != null && orderKVTableFromNs.getTable() != null) {

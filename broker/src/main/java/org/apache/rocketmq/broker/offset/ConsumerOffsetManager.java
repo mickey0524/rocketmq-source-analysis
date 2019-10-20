@@ -39,7 +39,8 @@ public class ConsumerOffsetManager extends ConfigManager {
     private static final String TOPIC_GROUP_SEPARATOR = "@";
 
     // 所有 topic 的 offset 信息都存储在这个 table 中，记录消费者分组对 topic 的某一个 queue 的消费位点
-    // topic 和 group 用 @ 相连
+    // topic 和 group 用 @ 相连，这个 topic 和 queueId，topic 和 group 之间的分隔符其实可以用一个固定的
+    // 一致性会好一些
     private ConcurrentMap<String/* topic@group */, ConcurrentMap<Integer, Long>> offsetTable =
         new ConcurrentHashMap<String, ConcurrentMap<Integer, Long>>(512);
 
@@ -53,6 +54,7 @@ public class ConsumerOffsetManager extends ConfigManager {
         this.brokerController = brokerController;
     }
 
+    // 浏览没有被注册的 topic
     public void scanUnsubscribedTopic() {
         Iterator<Entry<String, ConcurrentMap<Integer, Long>>> it = this.offsetTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -72,12 +74,14 @@ public class ConsumerOffsetManager extends ConfigManager {
         }
     }
 
+    // topic 是否所有的 queueId 消费位点都小于 store 中的最小位点
     private boolean offsetBehindMuchThanData(final String topic, ConcurrentMap<Integer, Long> table) {
         Iterator<Entry<Integer, Long>> it = table.entrySet().iterator();
         boolean result = !table.isEmpty();
 
         while (it.hasNext() && result) {
             Entry<Integer, Long> next = it.next();
+            // key 是 queueId，value 是消费位点，minOffsetInStore 获取 store 中 topic + queueId 最小的逻辑位点
             long minOffsetInStore = this.brokerController.getMessageStore().getMinOffsetInQueue(topic, next.getKey());
             long offsetInPersist = next.getValue();
             result = offsetInPersist <= minOffsetInStore;
@@ -129,7 +133,7 @@ public class ConsumerOffsetManager extends ConfigManager {
     public void commitOffset(final String clientHost, final String group, final String topic, final int queueId,
         final long offset) {
         // topic@group
-        String key = topic + TOPIC_GROUP_SEPARATOR + group;
+        String key = topic + TOPIC_GROUP_SEPARATOR + group;  // 这里又不定义 buildKey 方法了。。。
         this.commitOffset(clientHost, key, queueId, offset);
     }
 
@@ -220,12 +224,15 @@ public class ConsumerOffsetManager extends ConfigManager {
             String[] topicGroupArr = topicGroup.split(TOPIC_GROUP_SEPARATOR);
             if (topic.equals(topicGroupArr[0])) {
                 for (Entry<Integer, Long> entry : offSetEntry.getValue().entrySet()) {
+                    // minOffset 是 ConsumeQueue 中 topic + queueId 的最小位点
                     long minOffset = this.brokerController.getMessageStore().getMinOffsetInQueue(topic, entry.getKey());
                     if (entry.getValue() >= minOffset) {
                         Long offset = queueMinOffset.get(entry.getKey());
                         if (offset == null) {
+                            // 这里直接 put entry.getValue() 不就行了-。-
                             queueMinOffset.put(entry.getKey(), Math.min(Long.MAX_VALUE, entry.getValue()));
                         } else {
+                            // 获取更小的 offset
                             queueMinOffset.put(entry.getKey(), Math.min(entry.getValue(), offset));
                         }
                     }

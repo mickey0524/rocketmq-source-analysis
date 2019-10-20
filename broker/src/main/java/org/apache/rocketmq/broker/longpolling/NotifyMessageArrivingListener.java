@@ -21,6 +21,7 @@ import org.apache.rocketmq.store.MessageArrivingListener;
 
 import java.util.Map;
 
+// 消息在 store 中从 CommitLog 分发到了 ConsumeQueue，可以长轮询去消费了
 public class NotifyMessageArrivingListener implements MessageArrivingListener {
     private final PullRequestHoldService pullRequestHoldService;
 

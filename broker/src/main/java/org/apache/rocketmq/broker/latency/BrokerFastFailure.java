@@ -56,6 +56,7 @@ public class BrokerFastFailure {
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
+                // 建立在允许快速失败的情况下，默认为 true
                 if (brokerController.getBrokerConfig().isBrokerFastFailureEnable()) {
                     cleanExpiredRequest();
                 }
@@ -63,6 +64,7 @@ public class BrokerFastFailure {
         }, 1000, 10, TimeUnit.MILLISECONDS);
     }
 
+    // 清理过期的 request
     private void cleanExpiredRequest() {
         while (this.brokerController.getMessageStore().isOSPageCacheBusy()) {
             try {
@@ -94,6 +96,7 @@ public class BrokerFastFailure {
             .brokerController.getBrokerConfig().getWaitTimeMillsInTransactionQueue());
     }
 
+    // 清空 queue 中过期的请求
     void cleanExpiredRequestInQueue(final BlockingQueue<Runnable> blockingQueue, final long maxWaitTimeMillsInQueue) {
         while (true) {
             try {
@@ -109,6 +112,7 @@ public class BrokerFastFailure {
                     }
 
                     final long behind = System.currentTimeMillis() - rt.getCreateTimestamp();
+                    // timeout
                     if (behind >= maxWaitTimeMillsInQueue) {
                         // 返回队列中等待的请求，告知系统繁忙
                         if (blockingQueue.remove(runnable)) {

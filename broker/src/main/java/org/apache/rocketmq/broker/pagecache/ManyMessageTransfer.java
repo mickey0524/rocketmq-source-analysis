@@ -24,6 +24,8 @@ import java.nio.channels.WritableByteChannel;
 import java.util.List;
 import org.apache.rocketmq.store.GetMessageResult;
 
+// 将 MessageStore 中获取的消息结果，tranferTo Channel
+// 因为 MessageStore 中 GetMessage 方法返回的就是 GetMessageResult
 public class ManyMessageTransfer extends AbstractReferenceCounted implements FileRegion {
     private final ByteBuffer byteBufferHeader;
     private final GetMessageResult getMessageResult;

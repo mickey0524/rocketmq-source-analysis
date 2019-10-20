@@ -45,6 +45,7 @@ public class TopAddressing {
         this.unitName = unitName;
     }
 
+    // 清除换行
     private static String clearNewLine(final String str) {
         String newString = str.trim();
         int index = newString.indexOf("\r");
@@ -70,6 +71,7 @@ public class TopAddressing {
             if (!UtilAll.isBlank(this.unitName)) {
                 url = url + "-" + this.unitName + "?nofix=1";
             }
+            // 走 http 请求
             HttpTinyClient.HttpResult result = HttpTinyClient.httpGet(url, null, null, "UTF-8", timeoutMills);
             if (200 == result.code) {
                 String responseStr = result.content;
