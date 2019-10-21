@@ -36,7 +36,7 @@ public class RebalanceLockManager {
         new ConcurrentHashMap<String, ConcurrentHashMap<MessageQueue, LockEntry>>(1024);
 
     public boolean tryLock(final String group, final MessageQueue mq, final String clientId) {
-
+        // 没有上锁
         if (!this.isLocked(group, mq, clientId)) {
             try {
                 this.lock.lockInterruptibly();
@@ -57,14 +57,14 @@ public class RebalanceLockManager {
                             clientId,
                             mq);
                     }
-
+                    // lockEntry 上锁成功
                     if (lockEntry.isLocked(clientId)) {
                         lockEntry.setLastUpdateTimestamp(System.currentTimeMillis());
                         return true;
                     }
 
                     String oldClientId = lockEntry.getClientId();
-
+                    // 旧的 client 过期了
                     if (lockEntry.isExpired()) {
                         lockEntry.setClientId(clientId);
                         lockEntry.setLastUpdateTimestamp(System.currentTimeMillis());
@@ -97,6 +97,7 @@ public class RebalanceLockManager {
         return true;
     }
 
+    // 判断 MessageQueue 是否上锁
     private boolean isLocked(final String group, final MessageQueue mq, final String clientId) {
         ConcurrentHashMap<MessageQueue, LockEntry> groupValue = this.mqLockTable.get(group);
         if (groupValue != null) {
@@ -113,11 +114,11 @@ public class RebalanceLockManager {
 
         return false;
     }
-
+    // 批量 lock
     public Set<MessageQueue> tryLockBatch(final String group, final Set<MessageQueue> mqs,
         final String clientId) {
-        Set<MessageQueue> lockedMqs = new HashSet<MessageQueue>(mqs.size());
-        Set<MessageQueue> notLockedMqs = new HashSet<MessageQueue>(mqs.size());
+        Set<MessageQueue> lockedMqs = new HashSet<MessageQueue>(mqs.size());  // 已经被 clientId 上锁了
+        Set<MessageQueue> notLockedMqs = new HashSet<MessageQueue>(mqs.size());  // 没有上锁或者被其他 clientId 上锁了
 
         for (MessageQueue mq : mqs) {
             if (this.isLocked(group, mq, clientId)) {
@@ -136,7 +137,7 @@ public class RebalanceLockManager {
                         groupValue = new ConcurrentHashMap<>(32);
                         this.mqLockTable.put(group, groupValue);
                     }
-
+                    // 将没有被上锁的 MessageQueue 和过期的 MessageQueue 加上 clientId 的锁
                     for (MessageQueue mq : notLockedMqs) {
                         LockEntry lockEntry = groupValue.get(mq);
                         if (null == lockEntry) {
@@ -189,6 +190,7 @@ public class RebalanceLockManager {
         return lockedMqs;
     }
 
+    // 批量 unlock
     public void unlockBatch(final String group, final Set<MessageQueue> mqs, final String clientId) {
         try {
             this.lock.lockInterruptibly();
@@ -231,6 +233,7 @@ public class RebalanceLockManager {
         }
     }
 
+    // Lock 的 Entry 类
     static class LockEntry {
         private String clientId;
         private volatile long lastUpdateTimestamp = System.currentTimeMillis();

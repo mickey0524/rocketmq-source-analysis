@@ -16,15 +16,16 @@
  */
 package org.apache.rocketmq.broker.client;
 
-import io.netty.channel.Channel;
-
 import java.util.Collection;
 import java.util.List;
 
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 
-// 默认的 ConsumerIdsChangeListener
+import io.netty.channel.Channel;
+
+// 默认的 ConsumerIdsChangeListener，实现了 ConsumerIdsChangeListener 接口
+// ConsumerManager 中多次调用了 handler 方法
 public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListener {
     private final BrokerController brokerController;
 

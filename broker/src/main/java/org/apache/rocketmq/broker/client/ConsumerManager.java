@@ -103,7 +103,7 @@ public class ConsumerManager {
         }
     }
 
-    // 注册 consumer
+    // 注册 consumer group
     public boolean registerConsumer(final String group, final ClientChannelInfo clientChannelInfo,
         ConsumeType consumeType, MessageModel messageModel, ConsumeFromWhere consumeFromWhere,
         final Set<SubscriptionData> subList, boolean isNotifyConsumerIdsChangedEnable) {

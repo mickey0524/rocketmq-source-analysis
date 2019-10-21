@@ -16,7 +16,6 @@
  */
 package org.apache.rocketmq.broker.client;
 
-import io.netty.channel.Channel;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -24,24 +23,27 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
-import org.apache.rocketmq.logging.InternalLogger;
-import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.common.protocol.heartbeat.ConsumeType;
 import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
+import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.logging.InternalLoggerFactory;
 
-// comsuerGroup 的 info
+import io.netty.channel.Channel;
+
+// ConsumerGroup 的 info
 public class ConsumerGroupInfo {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
-    private final String groupName;  // consumerGroup 的名字
+    private final String groupName;  // ConsumerGroup 的名字
     private final ConcurrentMap<String/* Topic */, SubscriptionData> subscriptionTable =
         new ConcurrentHashMap<String, SubscriptionData>();
     private final ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable =
         new ConcurrentHashMap<Channel, ClientChannelInfo>(16);
-    private volatile ConsumeType consumeType;
-    private volatile MessageModel messageModel;
+    private volatile ConsumeType consumeType;  // push or pull
+    private volatile MessageModel messageModel;  // 广播 or 集群
     private volatile ConsumeFromWhere consumeFromWhere;
     private volatile long lastUpdateTimestamp = System.currentTimeMillis();
 
@@ -53,7 +55,7 @@ public class ConsumerGroupInfo {
         this.consumeFromWhere = consumeFromWhere;
     }
 
-    // 寻找指定 clientId 的 Channel
+    // 寻找指定 clientId 的 ClientChannelInfo
     public ClientChannelInfo findChannel(final String clientId) {
         Iterator<Entry<Channel, ClientChannelInfo>> it = this.channelInfoTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -119,7 +121,7 @@ public class ConsumerGroupInfo {
         return false;
     }
 
-    // 更新 Channel
+    // 更新 Channel 对应的 ClientChannelInfo
     public boolean updateChannel(final ClientChannelInfo infoNew, ConsumeType consumeType,
         MessageModel messageModel, ConsumeFromWhere consumeFromWhere) {
         boolean updated = false;

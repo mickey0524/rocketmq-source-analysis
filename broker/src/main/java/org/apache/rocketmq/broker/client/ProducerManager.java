@@ -35,10 +35,11 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 
+// 生产者管理者
 public class ProducerManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
-    private static final long LOCK_TIMEOUT_MILLIS = 3000;
-    private static final long CHANNEL_EXPIRED_TIMEOUT = 1000 * 120;
+    private static final long LOCK_TIMEOUT_MILLIS = 3000;  // 3s
+    private static final long CHANNEL_EXPIRED_TIMEOUT = 1000 * 120;  // 120s
     private static final int GET_AVALIABLE_CHANNEL_RETRY_COUNT = 3;
     private final Lock groupChannelLock = new ReentrantLock();
     // 按照 producer group 对生产者进行管理
@@ -203,7 +204,7 @@ public class ProducerManager {
         }
     }
 
-    // 获取可获得的 Channel
+    // 获取可获得的 Channel，这个参数命名为 groupId 也是醉了。。。
     public Channel getAvaliableChannel(String groupId) {
         HashMap<Channel, ClientChannelInfo> channelClientChannelInfoHashMap = groupChannelTable.get(groupId);
         List<Channel> channelList = new ArrayList<Channel>();
