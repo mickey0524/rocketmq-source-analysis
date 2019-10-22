@@ -71,6 +71,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         return false;
     }
 
+    // 心跳
     public RemotingCommand heartBeat(ChannelHandlerContext ctx, RemotingCommand request) {
         RemotingCommand response = RemotingCommand.createResponseCommand(null);
         HeartbeatData heartbeatData = HeartbeatData.decode(request.getBody(), HeartbeatData.class);
@@ -116,7 +117,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
                 );
             }
         }
-
+        // 生产者消息
         for (ProducerData data : heartbeatData.getProducerDataSet()) {
             this.brokerController.getProducerManager().registerProducer(data.getGroupName(),
                 clientChannelInfo);
@@ -125,11 +126,13 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         response.setRemark(null);
         return response;
     }
-
+    
+    // 注销 Client，要注销掉生产者和消费者中的 Client
     public RemotingCommand unregisterClient(ChannelHandlerContext ctx, RemotingCommand request)
         throws RemotingCommandException {
         final RemotingCommand response =
             RemotingCommand.createResponseCommand(UnregisterClientResponseHeader.class);
+        // requestHeader 中携带了 ClientId、producerGroup 和 consumerGroup
         final UnregisterClientRequestHeader requestHeader =
             (UnregisterClientRequestHeader) request
                 .decodeCommandCustomHeader(UnregisterClientRequestHeader.class);
@@ -171,6 +174,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         CheckClientRequestBody requestBody = CheckClientRequestBody.decode(request.getBody(),
             CheckClientRequestBody.class);
 
+        // consumerGroup 订阅一个 topic 对应一个 SubscriptionData 实例
         if (requestBody != null && requestBody.getSubscriptionData() != null) {
             SubscriptionData subscriptionData = requestBody.getSubscriptionData();
 

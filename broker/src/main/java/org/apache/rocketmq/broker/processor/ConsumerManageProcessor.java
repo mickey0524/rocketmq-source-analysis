@@ -71,6 +71,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         throws RemotingCommandException {
         final RemotingCommand response =
             RemotingCommand.createResponseCommand(GetConsumerListByGroupResponseHeader.class);
+        // 传入 consume group
         final GetConsumerListByGroupRequestHeader requestHeader =
             (GetConsumerListByGroupRequestHeader) request
                 .decodeCommandCustomHeader(GetConsumerListByGroupRequestHeader.class);
@@ -81,6 +82,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         if (consumerGroupInfo != null) {
             List<String> clientIds = consumerGroupInfo.getAllClientId();
             if (!clientIds.isEmpty()) {
+                // 包裹指定 consume group 的全部 clientId
                 GetConsumerListByGroupResponseBody body = new GetConsumerListByGroupResponseBody();
                 body.setConsumerIdList(clientIds);
                 response.setBody(body.encode());
@@ -101,6 +103,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         return response;
     }
 
+    // 更新 topic@group 中 queueId 对应的 commitOffset
     private RemotingCommand updateConsumerOffset(ChannelHandlerContext ctx, RemotingCommand request)
         throws RemotingCommandException {
         final RemotingCommand response =
@@ -114,7 +117,8 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         response.setRemark(null);
         return response;
     }
-
+    
+    // 获取 topic@group 中 queueId 对应的 commitOffset
     private RemotingCommand queryConsumerOffset(ChannelHandlerContext ctx, RemotingCommand request)
         throws RemotingCommandException {
         final RemotingCommand response =
@@ -134,6 +138,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
             response.setCode(ResponseCode.SUCCESS);
             response.setRemark(null);
         } else {
+            // topic + queueId 对应的 ConsumeQueue 中最小的逻辑位点
             long minOffset =
                 this.brokerController.getMessageStore().getMinOffsetInQueue(requestHeader.getTopic(),
                     requestHeader.getQueueId());

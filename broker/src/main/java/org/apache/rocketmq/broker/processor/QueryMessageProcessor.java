@@ -38,6 +38,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.store.QueryMessageResult;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
 
+// Query Message 请求的处理类
 public class QueryMessageProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 
@@ -67,17 +68,19 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
         return false;
     }
 
+    // 查询消息
     public RemotingCommand queryMessage(ChannelHandlerContext ctx, RemotingCommand request)
         throws RemotingCommandException {
         final RemotingCommand response =
             RemotingCommand.createResponseCommand(QueryMessageResponseHeader.class);
         final QueryMessageResponseHeader responseHeader =
             (QueryMessageResponseHeader) response.readCustomHeader();
+        // topic + key，存储在 MessageStore 的 IndexFile 中
         final QueryMessageRequestHeader requestHeader =
             (QueryMessageRequestHeader) request
                 .decodeCommandCustomHeader(QueryMessageRequestHeader.class);
 
-        response.setOpaque(request.getOpaque());
+        response.setOpaque(request.getOpaque());  // 这个是一个 request 的 ID 标识
 
         String isUniqueKey = request.getExtFields().get(MixAll.UNIQUE_MSG_QUERY_FLAG);
         if (isUniqueKey != null && isUniqueKey.equals("true")) {
@@ -98,6 +101,7 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
             response.setRemark(null);
 
             try {
+                // 将所有的 ByteBuffer 写入 Channel
                 FileRegion fileRegion =
                     new QueryMessageTransfer(response.encodeHeader(queryMessageResult
                         .getBufferTotalSize()), queryMessageResult);
@@ -130,7 +134,8 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
             (ViewMessageRequestHeader) request.decodeCommandCustomHeader(ViewMessageRequestHeader.class);
 
         response.setOpaque(request.getOpaque());
-
+        
+        // 根据 CommitLog 中的 phy offset，得到序列化后的消息
         final SelectMappedBufferResult selectMappedBufferResult =
             this.brokerController.getMessageStore().selectOneMessageByOffset(requestHeader.getOffset());
         if (selectMappedBufferResult != null) {
