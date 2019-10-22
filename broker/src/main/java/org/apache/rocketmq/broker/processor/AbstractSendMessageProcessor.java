@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import io.netty.channel.ChannelHandlerContext;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.mqtrace.SendMessageContext;
 import org.apache.rocketmq.broker.mqtrace.SendMessageHook;
@@ -53,6 +52,8 @@ import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.store.MessageExtBrokerInner;
 
+import io.netty.channel.ChannelHandlerContext;
+
 // 发送消息的 processor 的抽象父类
 public abstract class AbstractSendMessageProcessor implements NettyRequestProcessor {
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -66,6 +67,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
 
     public AbstractSendMessageProcessor(final BrokerController brokerController) {
         this.brokerController = brokerController;
+        // host:10911，brokerStartup 中 set 了 10911
         this.storeHost =
             new InetSocketAddress(brokerController.getBrokerConfig().getBrokerIP1(), brokerController
                 .getNettyServerConfig().getListenPort());
@@ -78,6 +80,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             return null;
         }
         String namespace = NamespaceUtil.getNamespaceFromResource(requestHeader.getTopic());
+        // 这里为啥不 SendMessageContext mqtraceContext = new SendMessageContext();。。。
         SendMessageContext mqtraceContext;
         mqtraceContext = new SendMessageContext();
         mqtraceContext.setProducerGroup(requestHeader.getProducerGroup());
@@ -107,9 +110,11 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         return sendMessageHookList != null && !this.sendMessageHookList.isEmpty();
     }
 
+    // build inner 的 msg，其实就是 MessageExtBrokerInner
     protected MessageExtBrokerInner buildInnerMsg(final ChannelHandlerContext ctx,
         final SendMessageRequestHeader requestHeader, final byte[] body, TopicConfig topicConfig) {
         int queueIdInt = requestHeader.getQueueId();
+        // queueId 小于 0，random 一个
         if (queueIdInt < 0) {
             queueIdInt = Math.abs(this.random.nextInt() % 99999999) % topicConfig.getWriteQueueNums();
         }
@@ -143,19 +148,24 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         return storeHost;
     }
 
+    // 检查消息 content 的大小，这里检查一下，MessageStore 中也检查了，defense in depth
+    // 个人觉得 Byte.MAX_VALUE 和 Short.MAX_VALUE 应该抽成常量，这也可以避免多处多次修改
     protected RemotingCommand msgContentCheck(final ChannelHandlerContext ctx,
         final SendMessageRequestHeader requestHeader, RemotingCommand request,
         final RemotingCommand response) {
+        // topic 的长度
         if (requestHeader.getTopic().length() > Byte.MAX_VALUE) {
             log.warn("putMessage message topic length too long {}", requestHeader.getTopic().length());
             response.setCode(ResponseCode.MESSAGE_ILLEGAL);
             return response;
         }
+        // properties 的长度
         if (requestHeader.getProperties() != null && requestHeader.getProperties().length() > Short.MAX_VALUE) {
             log.warn("putMessage message properties length too long {}", requestHeader.getProperties().length());
             response.setCode(ResponseCode.MESSAGE_ILLEGAL);
             return response;
         }
+        // body 的长度
         if (request.getBody().length > DBMsgConstants.MAX_BODY_SIZE) {
             log.warn(" topic {}  msg body size {}  from {}", requestHeader.getTopic(),
                 request.getBody().length, ChannelUtil.getRemoteIp(ctx.channel()));
@@ -166,6 +176,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         return response;
     }
 
+    // 检查消息的正确性
     protected RemotingCommand msgCheck(final ChannelHandlerContext ctx,
         final SendMessageRequestHeader requestHeader, final RemotingCommand response) {
         // broker 不可写
@@ -191,7 +202,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         if (null == topicConfig) {
             int topicSysFlag = 0;
             if (requestHeader.isUnitMode()) {
-                // 区分 topic 是否为单元化的
+                // 区分 topic 是否为单元化的，失败后重试
                 if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                     topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
                 } else {
@@ -208,6 +219,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
 
             if (null == topicConfig) {
                 if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+                    // createTopicInSendMessageMethod 失败后，调用 createTopicInSendMessageBackMethod 方法
                     topicConfig =
                         this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
                             requestHeader.getTopic(), 1, PermName.PERM_WRITE | PermName.PERM_READ,
@@ -245,7 +257,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
     public void registerSendMessageHook(List<SendMessageHook> sendMessageHookList) {
         this.sendMessageHookList = sendMessageHookList;
     }
-
+    // 响应
     protected void doResponse(ChannelHandlerContext ctx, RemotingCommand request,
         final RemotingCommand response) {
         if (!request.isOnewayRPC()) {
@@ -259,6 +271,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         }
     }
 
+    // 在 send msg 之前执行钩子函数
     public void executeSendMessageHookBefore(final ChannelHandlerContext ctx, final RemotingCommand request,
         SendMessageContext context) {
         // 如果发送消息的钩子存在，执行
@@ -267,7 +280,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
                 try {
                     // 这里 processRequest 中都执行过...
                     final SendMessageRequestHeader requestHeader = parseRequestHeader(request);
-
+                    // 过滤 % 得到命名空间
                     String namespace = NamespaceUtil.getNamespaceFromResource(requestHeader.getTopic());
                     if (null != requestHeader) {
                         context.setNamespace(namespace);

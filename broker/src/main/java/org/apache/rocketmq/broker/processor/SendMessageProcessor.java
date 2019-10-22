@@ -20,7 +20,6 @@ import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 
-import io.netty.channel.ChannelHandlerContext;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.mqtrace.ConsumeMessageContext;
 import org.apache.rocketmq.broker.mqtrace.ConsumeMessageHook;
@@ -54,6 +53,8 @@ import org.apache.rocketmq.store.PutMessageResult;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
+import io.netty.channel.ChannelHandlerContext;
+
 // 发送消息的 processor
 public class SendMessageProcessor extends AbstractSendMessageProcessor implements NettyRequestProcessor {
 
@@ -63,6 +64,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         super(brokerController);
     }
 
+    // 处理请求
     @Override
     public RemotingCommand processRequest(ChannelHandlerContext ctx,
                                           RemotingCommand request) throws RemotingCommandException {
@@ -93,12 +95,17 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         }
     }
 
+    // 是否拒绝请求
+    // 1. CommitLog 上锁时间过长
+    // 2. pool available buffer 数为 0
     @Override
     public boolean rejectRequest() {
         return this.brokerController.getMessageStore().isOSPageCacheBusy() ||
             this.brokerController.getMessageStore().isTransientStorePoolDeficient();
     }
 
+    // 消费者消费失败，返回给 broker，broker 去 CommitLog 中捞出之前的消息，然后重新写入，注意是重新写入
+    // 会在 CommitLog 中生成多条消息
     private RemotingCommand consumerSendMsgBack(final ChannelHandlerContext ctx, final RemotingCommand request)
         throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
@@ -121,8 +128,10 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             this.executeConsumeMessageHookAfter(context);
         }
 
+        // 拿到对应的 consumer group
         SubscriptionGroupConfig subscriptionGroupConfig =
             this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(requestHeader.getGroup());
+    
         if (null == subscriptionGroupConfig) {
             response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
             response.setRemark("subscription group not exist, " + requestHeader.getGroup() + " "
@@ -142,6 +151,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             return response;
         }
 
+        // 加上 retry 的前缀
         String newTopic = MixAll.getRetryTopic(requestHeader.getGroup());
         int queueIdInt = Math.abs(this.random.nextInt() % 99999999) % subscriptionGroupConfig.getRetryQueueNums();
 
@@ -165,7 +175,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             response.setRemark(String.format("the topic[%s] sending message is forbidden", newTopic));
             return response;
         }
-
+        // 根据 offset 从 MessageStore 中得到 Message
         MessageExt msgExt = this.brokerController.getMessageStore().lookMessageByOffset(requestHeader.getOffset());
         if (null == msgExt) {
             response.setCode(ResponseCode.SYSTEM_ERROR);
@@ -177,7 +187,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         if (null == retryTopic) {
             MessageAccessor.putProperty(msgExt, MessageConst.PROPERTY_RETRY_TOPIC, msgExt.getTopic());
         }
-        msgExt.setWaitStoreMsgOK(false);
+        msgExt.setWaitStoreMsgOK(false);  // 不同步等待
 
         int delayLevel = requestHeader.getDelayLevel();
 
@@ -186,11 +196,12 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             maxReconsumeTimes = requestHeader.getMaxReconsumeTimes();
         }
 
-        if (msgExt.getReconsumeTimes() >= maxReconsumeTimes
-            || delayLevel < 0) {
+        if (msgExt.getReconsumeTimes() >= maxReconsumeTimes  // 超过多少次则写入死信队列
+            || delayLevel < 0) {  // delayLevel 小于 0，说明不需要消费了
             newTopic = MixAll.getDLQTopic(requestHeader.getGroup());
             queueIdInt = Math.abs(this.random.nextInt() % 99999999) % DLQ_NUMS_PER_GROUP;
-
+            
+            // 死信队列这里只可写，不可读
             topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic,
                 DLQ_NUMS_PER_GROUP,
                 PermName.PERM_WRITE, 0
@@ -221,11 +232,15 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         msgInner.setBornTimestamp(msgExt.getBornTimestamp());
         msgInner.setBornHost(msgExt.getBornHost());
         msgInner.setStoreHost(this.getStoreHost());
-        msgInner.setReconsumeTimes(msgExt.getReconsumeTimes() + 1);
-
+        // 之前的 msg 消费失败后，这里生成一条新的 msg，其 reconsumeTimes 自增 1
+        msgInner.setReconsumeTimes(msgExt.getReconsumeTimes() + 1);  // 重试次数 + 1
+        // msgExt 是通过客户端发送过来的位点 offset 从 commitlog 中找到的消息，originMsgId 也就是通过位点找到的这条消息的 msgid
         String originMsgId = MessageAccessor.getOriginMessageId(msgExt);
         MessageAccessor.setOriginMessageId(msgInner, UtilAll.isBlank(originMsgId) ? msgExt.getMsgId() : originMsgId);
 
+        // 从这里可以看出虽然是消费失败的消息，客户端通过 code：CONSUMER_SEND_MSG_BACK 发送回 broker
+        // 虽然这调消息的 body 和原始消息 body 内容一样，但是 broker 还是把当做是一条新的消息，存入队列中，如果多次消费失败，则从客户端打回
+        // 到 broker 后则会重复存入队列多少次，每条都占用空间
         PutMessageResult putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
         if (putMessageResult != null) {
             switch (putMessageResult.getPutMessageStatus()) {
@@ -256,7 +271,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         return response;
     }
 
-    // 处理重试
+    // 处理重试和死信
     private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, RemotingCommand response,
                                       RemotingCommand request,
                                       MessageExt msg, TopicConfig topicConfig) {
@@ -279,7 +294,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                 maxReconsumeTimes = requestHeader.getMaxReconsumeTimes();
             }
             int reconsumeTimes = requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes();
-            // 重试次数大于等于最大重试次数
+            // 重试次数大于等于最大重试次数，写入死信队列
             if (reconsumeTimes >= maxReconsumeTimes) {
                 newTopic = MixAll.getDLQTopic(groupName);
                 int queueIdInt = Math.abs(this.random.nextInt() % 99999999) % DLQ_NUMS_PER_GROUP;
@@ -304,6 +319,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         return true;
     }
 
+    // 生产者 send 消息给 broker
     private RemotingCommand sendMessage(final ChannelHandlerContext ctx,
                                         final RemotingCommand request,
                                         final SendMessageContext sendMessageContext,
@@ -312,7 +328,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         final RemotingCommand response = RemotingCommand.createResponseCommand(SendMessageResponseHeader.class);
         final SendMessageResponseHeader responseHeader = (SendMessageResponseHeader)response.readCustomHeader();
 
-        response.setOpaque(request.getOpaque());
+        response.setOpaque(request.getOpaque());  // 请求 id，是一个 AtomicInteger
         // 写 map，kv pair
         response.addExtField(MessageConst.PROPERTY_MSG_REGION, this.brokerController.getBrokerConfig().getRegionId());
         response.addExtField(MessageConst.PROPERTY_TRACE_SWITCH, String.valueOf(this.brokerController.getBrokerConfig().isTraceOn()));
@@ -373,6 +389,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             }
             putMessageResult = this.brokerController.getTransactionalMessageService().prepareMessage(msgInner);
         } else {
+            // 存储到 MessageStore 中去
             putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
         }
 
@@ -384,7 +401,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                                                    RemotingCommand request, MessageExt msg,
                                                    SendMessageResponseHeader responseHeader, SendMessageContext sendMessageContext, ChannelHandlerContext ctx,
                                                    int queueIdInt) {
-        // send msg error
+        // 返回系统错误
         if (putMessageResult == null) {
             response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("store putMessage return null");
@@ -394,6 +411,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         switch (putMessageResult.getPutMessageStatus()) {
             // Success
+            // 下面四种情况是成功写入 master broker 的 MessageStore 的
             case PUT_OK:
                 sendOK = true;
                 response.setCode(ResponseCode.SUCCESS);
@@ -429,6 +447,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                 break;
             case OS_PAGECACHE_BUSY:
                 response.setCode(ResponseCode.SYSTEM_ERROR);
+                // 需要流量控制下，CommitLog 上锁时间过长
                 response.setRemark("[PC_SYNCHRONIZED]broker busy, start flow control for a while");
                 break;
             case UNKNOWN_ERROR:
@@ -486,11 +505,12 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         return response;
     }
 
+    // send 一批消息
     private RemotingCommand sendBatchMessage(final ChannelHandlerContext ctx,
                                              final RemotingCommand request,
                                              final SendMessageContext sendMessageContext,
                                              final SendMessageRequestHeader requestHeader) throws RemotingCommandException {
-
+        // 一批消息的 messageId 是每个消息的 messageId 拼接而成的
         final RemotingCommand response = RemotingCommand.createResponseCommand(SendMessageResponseHeader.class);
         final SendMessageResponseHeader responseHeader = (SendMessageResponseHeader)response.readCustomHeader();
 
@@ -555,10 +575,12 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         return handlePutMessageResult(putMessageResult, response, request, messageExtBatch, responseHeader, sendMessageContext, ctx, queueIdInt);
     }
 
+    // 是否有消费消息的钩子函数
     public boolean hasConsumeMessageHook() {
         return consumeMessageHookList != null && !this.consumeMessageHookList.isEmpty();
     }
 
+    // 执行钩子函数
     public void executeConsumeMessageHookAfter(final ConsumeMessageContext context) {
         if (hasConsumeMessageHook()) {
             for (ConsumeMessageHook hook : this.consumeMessageHookList) {
