@@ -52,6 +52,7 @@ public class JDBCTransactionStore implements TransactionStore {
             props.put("password", jdbcTransactionStoreConfig.getJdbcPassword());
 
             try {
+                // 生成 connection
                 this.connection =
                     DriverManager.getConnection(this.jdbcTransactionStoreConfig.getJdbcURL(), props);
 
@@ -70,6 +71,7 @@ public class JDBCTransactionStore implements TransactionStore {
         return false;
     }
 
+    // 加载 mysql driver
     private boolean loadDriver() {
         try {
             Class.forName(this.jdbcTransactionStoreConfig.getJdbcDriverClass()).newInstance();
@@ -83,6 +85,7 @@ public class JDBCTransactionStore implements TransactionStore {
         return false;
     }
 
+    // 计算全部 record 的数目
     private boolean computeTotalRecords() {
         Statement statement = null;
         ResultSet resultSet = null;
@@ -118,6 +121,7 @@ public class JDBCTransactionStore implements TransactionStore {
         return true;
     }
 
+    // 创建 DB
     private boolean createDB() {
         Statement statement = null;
         try {
@@ -126,7 +130,7 @@ public class JDBCTransactionStore implements TransactionStore {
             String sql = this.createTableSql();
             log.info("createDB SQL:\n {}", sql);
             statement.execute(sql);
-            this.connection.commit();
+            this.connection.commit();  // 设置了 autocommit = false，需要自己 commit
             return true;
         } catch (Exception e) {
             log.warn("createDB Exception", e);
@@ -142,6 +146,7 @@ public class JDBCTransactionStore implements TransactionStore {
         }
     }
 
+    // 得到建表的 sql
     private String createTableSql() {
         URL resource = JDBCTransactionStore.class.getClassLoader().getResource("transaction.sql");
         String fileContent = MixAll.file2String(resource);

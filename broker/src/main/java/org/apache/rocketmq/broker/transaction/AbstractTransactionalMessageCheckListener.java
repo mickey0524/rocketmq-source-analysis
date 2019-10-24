@@ -32,6 +32,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+// 抽象类，事务消息检查的监听器
 public abstract class AbstractTransactionalMessageCheckListener {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
 
@@ -59,8 +60,8 @@ public abstract class AbstractTransactionalMessageCheckListener {
 
     public void sendCheckMessage(MessageExt msgExt) throws Exception {
         CheckTransactionStateRequestHeader checkTransactionStateRequestHeader = new CheckTransactionStateRequestHeader();
-        checkTransactionStateRequestHeader.setCommitLogOffset(msgExt.getCommitLogOffset());
-        checkTransactionStateRequestHeader.setOffsetMsgId(msgExt.getMsgId());
+        checkTransactionStateRequestHeader.setCommitLogOffset(msgExt.getCommitLogOffset());  // 物理偏移
+        checkTransactionStateRequestHeader.setOffsetMsgId(msgExt.getMsgId());  // 消息 Id
         checkTransactionStateRequestHeader.setMsgId(msgExt.getUserProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
         checkTransactionStateRequestHeader.setTransactionId(checkTransactionStateRequestHeader.getMsgId());
         checkTransactionStateRequestHeader.setTranStateTableOffset(msgExt.getQueueOffset());
