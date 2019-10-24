@@ -17,9 +17,9 @@
 
 package org.apache.rocketmq.filter.util;
 
-import com.google.common.hash.Hashing;
-
 import java.nio.charset.Charset;
+
+import com.google.common.hash.Hashing;
 
 /**
  * Simple implement of bloom filter.
@@ -33,8 +33,10 @@ public class BloomFilter {
     private int n = 128;
 
     // hash function num, by calculation.
+    // hash 函数数目
     private int k;
     // bit count, by calculation.
+    // bit 数
     private int m;
 
     /**
@@ -77,6 +79,7 @@ public class BloomFilter {
         // m >= n*log2(1/f)*log2(e)
         this.m = (int) Math.ceil(this.n * logMN(2, 1 / errorRate) * logMN(2, Math.E));
         // m%8 = 0
+        // 当 m 为 8 的倍数
         this.m = (int) (Byte.SIZE * Math.ceil(this.m / (Byte.SIZE * 1.0)));
     }
 
@@ -110,6 +113,7 @@ public class BloomFilter {
     /**
      * Calculate bit positions of {@code str} to construct {@code BloomFilterData}
      */
+    // 计算 str 的 bit 位置
     public BloomFilterData generate(String str) {
         int[] bitPositions = calcBitPositions(str);
 
@@ -223,6 +227,7 @@ public class BloomFilter {
      * <li>3. {@link org.apache.rocketmq.filter.util.BloomFilterData#getBitPos} is not null</li>
      * <li>4. {@link org.apache.rocketmq.filter.util.BloomFilterData#getBitPos}'s length is equal to {@code k}</li>
      */
+    // 判断 BloomFilterData 是否有效且属于此 BloomFilter
     public boolean isValid(BloomFilterData filterData) {
         if (filterData == null
             || filterData.getBitNum() != this.m
@@ -283,6 +288,7 @@ public class BloomFilter {
         return true;
     }
 
+    // 又是熟悉的 31
     @Override
     public int hashCode() {
         int result = f;

@@ -23,6 +23,7 @@ import java.util.Map;
 /**
  * Filter factory: support other filter to register.
  */
+// Expression Filter 工厂
 public class FilterFactory {
 
     public static final FilterFactory INSTANCE = new FilterFactory();

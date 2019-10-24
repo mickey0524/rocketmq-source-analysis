@@ -49,6 +49,7 @@ public class ExpressionType {
      * (a > 10 AND a < 100) OR (b IS NOT NULL AND b=TRUE)
      * </p>
      */
+    // SQL 类型的过滤，这个肯定要生成逻辑计划（AST之类的？）
     public static final String SQL92 = "SQL92";
 
     /**
@@ -56,6 +57,8 @@ public class ExpressionType {
      * "tag1 || tag2 || tag3", <br>
      * If null or * expression,meaning subscribe all.
      */
+    // 如果是 TAG 类型的过滤，则是类型 tag1 || tag2 || tag3 这样的
+    // null 和 * 表示订阅所有消息
     public static final String TAG = "TAG";
 
     public static boolean isTagType(String type) {

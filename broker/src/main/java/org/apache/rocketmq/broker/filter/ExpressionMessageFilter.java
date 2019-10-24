@@ -68,6 +68,7 @@ public class ExpressionMessageFilter implements MessageFilter {
         }
 
         // by tags code.
+        // Tag 类型的，查看 tagsCode 是否存在于 codeSet 中
         if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
 
             if (tagsCode == null) {
@@ -138,6 +139,7 @@ public class ExpressionMessageFilter implements MessageFilter {
         }
 
         if (tempProperties == null && msgBuffer != null) {
+            // 从 msgBuffer 中获取 properties
             tempProperties = MessageDecoder.decodeProperties(msgBuffer);
         }
 

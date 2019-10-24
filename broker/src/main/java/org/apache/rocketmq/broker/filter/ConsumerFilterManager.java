@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Consumer filter data manager.Just manage the consumers use expression filter.
  */
+// 管理消费者过滤消息，仅仅管理使用 expression 过滤的消费者
 public class ConsumerFilterManager extends ConfigManager {
 
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.FILTER_LOGGER_NAME);
@@ -47,7 +48,7 @@ public class ConsumerFilterManager extends ConfigManager {
     private static final long MS_24_HOUR = 24 * 3600 * 1000;  // 一天的毫秒数
 
     private ConcurrentMap<String/*Topic*/, FilterDataMapByTopic>
-        filterDataByTopic = new ConcurrentHashMap<String/*consumer group*/, FilterDataMapByTopic>(256);
+        filterDataByTopic = new ConcurrentHashMap<String, FilterDataMapByTopic>(256);
 
     private transient BrokerController brokerController;
     private transient BloomFilter bloomFilter;
@@ -60,6 +61,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
     public ConsumerFilterManager(BrokerController brokerController) {
         this.brokerController = brokerController;
+        // 创建布隆过滤器
         this.bloomFilter = BloomFilter.createByFn(
             brokerController.getBrokerConfig().getMaxErrorRateOfBloomFilter(),
             brokerController.getBrokerConfig().getExpectConsumerNumUseFilter()
@@ -79,6 +81,7 @@ public class ConsumerFilterManager extends ConfigManager {
     public static ConsumerFilterData build(final String topic, final String consumerGroup,
         final String expression, final String type,
         final long clientVersion) {
+        // 如果使用的是 Tag 过滤，直接返回
         if (ExpressionType.isTagType(type)) {
             return null;
         }
