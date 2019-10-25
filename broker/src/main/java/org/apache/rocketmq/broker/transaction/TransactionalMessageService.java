@@ -70,7 +70,7 @@ public interface TransactionalMessageService {
      * @param listener When the message is considered to be checked or discarded, the relative method of this class will
      * be invoked.
      */
-    // 遍历未提交/回滚一半的消息，并将回签请求发送给生产者以获取事务状态
+    // 遍历没有 commit 和 rollback 的 prepare 的消息，发送请求给 producer 来获取事务状态
     void check(long transactionTimeout, int transactionCheckMax, AbstractTransactionalMessageCheckListener listener);
 
     /**
