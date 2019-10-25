@@ -49,7 +49,7 @@ import org.apache.rocketmq.store.MessageStore;
 import org.apache.rocketmq.store.PutMessageResult;
 import org.apache.rocketmq.store.PutMessageStatus;
 
-// 事务消息的桥接
+// 事务消息的桥接，可以理解为 TransactionalMessageService 和 MessageStore 之间的 Proxy
 public class TransactionalMessageBridge {
     private static final InternalLogger LOGGER = InnerLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
 
