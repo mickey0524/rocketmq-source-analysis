@@ -391,7 +391,7 @@ public class TopicConfigManager extends ConfigManager {
         this.persist();
     }
 
-    // KVTable 中包裹着一个 HashMap
+    // KVTable 中包裹着一个，更新 topic 的 order 字段，用来设置 topic 是否有序
     public void updateOrderTopicConfig(final KVTable orderKVTableFromNs) {
 
         if (orderKVTableFromNs != null && orderKVTableFromNs.getTable() != null) {

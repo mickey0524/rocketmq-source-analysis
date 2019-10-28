@@ -54,7 +54,7 @@ public class ConsumerOffsetManager extends ConfigManager {
         this.brokerController = brokerController;
     }
 
-    // 浏览没有被注册的 topic
+    // 浏览没有被注册的 topic，然后 remove
     public void scanUnsubscribedTopic() {
         Iterator<Entry<String, ConcurrentMap<Integer, Long>>> it = this.offsetTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -109,7 +109,7 @@ public class ConsumerOffsetManager extends ConfigManager {
         return topics;
     }
 
-    // 统计 topic 的 group 集合
+    // 统计消费了 topic 的 group 集合
     public Set<String> whichGroupByTopic(final String topic) {
         Set<String> groups = new HashSet<String>();
 
