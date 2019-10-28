@@ -74,8 +74,10 @@ public class PullRequestHoldService extends ServiceThread {
             try {
                 // 长轮循 enable
                 if (this.brokerController.getBrokerConfig().isLongPollingEnable()) {
+                    // 这个 5 * 1000 为什么不抽常量
                     this.waitForRunning(5 * 1000);
                 } else {
+                    // 1000
                     this.waitForRunning(this.brokerController.getBrokerConfig().getShortPollingTimeMills());
                 }
 

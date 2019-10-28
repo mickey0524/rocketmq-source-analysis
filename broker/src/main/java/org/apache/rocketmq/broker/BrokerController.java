@@ -114,26 +114,26 @@ public class BrokerController {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final InternalLogger LOG_PROTECTION = InternalLoggerFactory.getLogger(LoggerName.PROTECTION_LOGGER_NAME);
     private static final InternalLogger LOG_WATER_MARK = InternalLoggerFactory.getLogger(LoggerName.WATER_MARK_LOGGER_NAME);
-    private final BrokerConfig brokerConfig;
-    private final NettyServerConfig nettyServerConfig;
-    private final NettyClientConfig nettyClientConfig;
-    private final MessageStoreConfig messageStoreConfig;
-    private final ConsumerOffsetManager consumerOffsetManager;  // 管理 topic@group 每个 queue 的消费位点
-    private final ConsumerManager consumerManager;
+    private final BrokerConfig brokerConfig;  // broker 的配置
+    private final NettyServerConfig nettyServerConfig;  // netty server 的配置
+    private final NettyClientConfig nettyClientConfig;  // netty client 的配置
+    private final MessageStoreConfig messageStoreConfig;  // message store 的配置
+    private final ConsumerOffsetManager consumerOffsetManager;  // 管理 topic@group 每个 queueId 的消费位点
+    private final ConsumerManager consumerManager;  // 管理消费者，consume group 对某个 topic 的消费配置
     private final ConsumerFilterManager consumerFilterManager;
-    private final ProducerManager producerManager;
+    private final ProducerManager producerManager;  // 管理生产者
     private final ClientHousekeepingService clientHousekeepingService;
-    private final PullMessageProcessor pullMessageProcessor;
-    private final PullRequestHoldService pullRequestHoldService;
-    private final MessageArrivingListener messageArrivingListener;
+    private final PullMessageProcessor pullMessageProcessor;  // 从 message store 中拉取 msg
+    private final PullRequestHoldService pullRequestHoldService;  // 存储 PullRequest，定时判断是否可以 pull msg
+    private final MessageArrivingListener messageArrivingListener;  // 消息到来的监听者
     private final Broker2Client broker2Client;
-    private final SubscriptionGroupManager subscriptionGroupManager;
+    private final SubscriptionGroupManager subscriptionGroupManager;  // 管理 consume group 的配置
     private final ConsumerIdsChangeListener consumerIdsChangeListener;
     private final RebalanceLockManager rebalanceLockManager = new RebalanceLockManager();
-    private final BrokerOuterAPI brokerOuterAPI;
+    private final BrokerOuterAPI brokerOuterAPI;  // 用于 broker 和 namesrv register/unregister 自己，以及 slave 和 master 之间的同步
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
         "BrokerControllerScheduledThread"));
-    private final SlaveSynchronize slaveSynchronize;
+    private final SlaveSynchronize slaveSynchronize;  // 主从之间同步
     private final BlockingQueue<Runnable> sendThreadPoolQueue;
     private final BlockingQueue<Runnable> pullThreadPoolQueue;
     private final BlockingQueue<Runnable> queryThreadPoolQueue;
@@ -145,9 +145,9 @@ public class BrokerController {
     private final BrokerStatsManager brokerStatsManager;
     private final List<SendMessageHook> sendMessageHookList = new ArrayList<SendMessageHook>();
     private final List<ConsumeMessageHook> consumeMessageHookList = new ArrayList<ConsumeMessageHook>();
-    private MessageStore messageStore;
-    private RemotingServer remotingServer;
-    private RemotingServer fastRemotingServer;
+    private MessageStore messageStore;  // 消息存储服务
+    private RemotingServer remotingServer;  // 10911
+    private RemotingServer fastRemotingServer;  // 10909
     private TopicConfigManager topicConfigManager;  //管理 topic 配置
     private ExecutorService sendMessageExecutor;
     private ExecutorService pullMessageExecutor;
