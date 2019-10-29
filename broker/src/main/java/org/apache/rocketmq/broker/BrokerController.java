@@ -259,7 +259,7 @@ public class BrokerController {
             }
         }
 
-        result = result && this.messageStore.load();
+        result = result && this.messageStore.load();  // 加载 messageStore 中的 ConsumeQueue 和 CommitLog 的磁盘存储文件
 
         if (result) {
             // 对生产者和消费者进行网络数据收发的 10911 端口的网络事件处理
@@ -325,8 +325,9 @@ public class BrokerController {
                 Executors.newFixedThreadPool(this.brokerConfig.getConsumerManageThreadPoolNums(), new ThreadFactoryImpl(
                     "ConsumerManageThread_"));
 
-            this.registerProcessor();
+            this.registerProcessor();  // 将对应的 requestCode 对应到
 
+            // 启动的时候，计算当前离明天凌晨的时间差
             final long initialDelay = UtilAll.computeNextMorningTimeMillis() - System.currentTimeMillis();
             final long period = 1000 * 60 * 60 * 24;
             // 每 24h 记录一次 broker stats
@@ -389,7 +390,7 @@ public class BrokerController {
                 }
             }, 10, 1, TimeUnit.SECONDS);
 
-            // 每1分钟记录一次分发到 cq 和索引文件中的 commitlog 的位点和已经 commit 的位点差异
+            // 每 1 分钟记录一次分发到 cq 和索引文件中的 commitlog 的位点和已经 commit 的位点差异
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
                 @Override
@@ -495,6 +496,7 @@ public class BrokerController {
         return result;
     }
 
+    // 初始化事务
     private void initialTransaction() {
         this.transactionalMessageService = ServiceProvider.loadClass(ServiceProvider.TRANSACTION_SERVICE_ID, TransactionalMessageService.class);
         if (null == this.transactionalMessageService) {
@@ -510,6 +512,7 @@ public class BrokerController {
         this.transactionalMessageCheckService = new TransactionalMessageCheckService(this);
     }
 
+    // 初始化鉴权
     private void initialAcl() {
         if (!this.brokerConfig.isAclEnable()) {
             log.info("The broker dose not enable acl");
@@ -557,6 +560,7 @@ public class BrokerController {
         /**
          * SendMessageProcessor
          */
+        // producer 向 broker 发送消息的处理者
         SendMessageProcessor sendProcessor = new SendMessageProcessor(this);
         sendProcessor.registerSendMessageHook(sendMessageHookList);
         sendProcessor.registerConsumeMessageHook(consumeMessageHookList);
@@ -572,12 +576,14 @@ public class BrokerController {
         /**
          * PullMessageProcessor
          */
+        // 消费者向 broker 拉取消息的处理者
         this.remotingServer.registerProcessor(RequestCode.PULL_MESSAGE, this.pullMessageProcessor, this.pullMessageExecutor);
         this.pullMessageProcessor.registerConsumeMessageHook(consumeMessageHookList);
 
         /**
          * QueryMessageProcessor
          */
+        // 请求消息的处理者
         NettyRequestProcessor queryProcessor = new QueryMessageProcessor(this);
         this.remotingServer.registerProcessor(RequestCode.QUERY_MESSAGE, queryProcessor, this.queryMessageExecutor);
         this.remotingServer.registerProcessor(RequestCode.VIEW_MESSAGE_BY_ID, queryProcessor, this.queryMessageExecutor);
@@ -588,6 +594,7 @@ public class BrokerController {
         /**
          * ClientManageProcessor
          */
+        // client 管理的处理者
         ClientManageProcessor clientProcessor = new ClientManageProcessor(this);
         this.remotingServer.registerProcessor(RequestCode.HEART_BEAT, clientProcessor, this.heartbeatExecutor);
         this.remotingServer.registerProcessor(RequestCode.UNREGISTER_CLIENT, clientProcessor, this.clientManageExecutor);
@@ -600,6 +607,7 @@ public class BrokerController {
         /**
          * ConsumerManageProcessor
          */
+        // 消费者管理的处理者
         ConsumerManageProcessor consumerManageProcessor = new ConsumerManageProcessor(this);
         this.remotingServer.registerProcessor(RequestCode.GET_CONSUMER_LIST_BY_GROUP, consumerManageProcessor, this.consumerManageExecutor);
         this.remotingServer.registerProcessor(RequestCode.UPDATE_CONSUMER_OFFSET, consumerManageProcessor, this.consumerManageExecutor);
@@ -612,6 +620,7 @@ public class BrokerController {
         /**
          * EndTransactionProcessor
          */
+        // 结束事务的处理者
         this.remotingServer.registerProcessor(RequestCode.END_TRANSACTION, new EndTransactionProcessor(this), this.endTransactionExecutor);
         this.fastRemotingServer.registerProcessor(RequestCode.END_TRANSACTION, new EndTransactionProcessor(this), this.endTransactionExecutor);
 
@@ -744,6 +753,7 @@ public class BrokerController {
         return subscriptionGroupManager;
     }
 
+    // shutdown 服务
     public void shutdown() {
         if (this.brokerStatsManager != null) {
             this.brokerStatsManager.shutdown();
@@ -931,6 +941,7 @@ public class BrokerController {
     }
 
     public synchronized void registerBrokerAll(final boolean checkOrderConfig, boolean oneway, boolean forceRegister) {
+        // 包裹 TopicConfig
         TopicConfigSerializeWrapper topicConfigWrapper = this.getTopicConfigManager().buildTopicConfigSerializeWrapper();
 
         if (!PermName.isWriteable(this.getBrokerConfig().getBrokerPermission())
@@ -954,6 +965,7 @@ public class BrokerController {
         }
     }
 
+    // 向所有的 namesrv 注册
     private void doRegisterBrokerAll(boolean checkOrderConfig, boolean oneway,
         TopicConfigSerializeWrapper topicConfigWrapper) {
         List<RegisterBrokerResult> registerBrokerResultList = this.brokerOuterAPI.registerBrokerAll(
@@ -984,6 +996,7 @@ public class BrokerController {
         }
     }
 
+    // broker 需要 register 了，如果 dataVersion change 了，说明需要注册了
     private boolean needRegister(final String clusterName,
         final String brokerAddr,
         final String brokerName,
@@ -1133,7 +1146,10 @@ public class BrokerController {
         return accessValidatorMap;
     }
 
+    // 是我的话，这个方法会命名为 toggle
     private void handleSlaveSynchronize(BrokerRole role) {
+        // salve => master
+        // master 都改为 null，到时候根据 register 的结果来设置
         if (role == BrokerRole.SLAVE) {
             if (null != slaveSyncFuture) {
                 slaveSyncFuture.cancel(false);
@@ -1152,6 +1168,7 @@ public class BrokerController {
             }, 1000 * 3, 1000 * 10, TimeUnit.MILLISECONDS);
         } else {
             //handle the slave synchronise
+            // master => slave
             if (null != slaveSyncFuture) {
                 slaveSyncFuture.cancel(false);
             }
@@ -1167,6 +1184,7 @@ public class BrokerController {
         messageStoreConfig.setBrokerRole(BrokerRole.SLAVE);
 
         //handle the scheduled service
+        // salve 不需要延迟调度
         try {
             this.messageStore.handleScheduleMessageService(BrokerRole.SLAVE);
         } catch (Throwable t) {
@@ -1192,7 +1210,7 @@ public class BrokerController {
     }
 
 
-
+    // master change 成 slave
     public void changeToMaster(BrokerRole role) {
         if (role == BrokerRole.SLAVE) {
             return;
@@ -1203,6 +1221,7 @@ public class BrokerController {
         handleSlaveSynchronize(role);
 
         //handle the scheduled service
+        // master 需要开启延迟调度
         try {
             this.messageStore.handleScheduleMessageService(role);
         } catch (Throwable t) {

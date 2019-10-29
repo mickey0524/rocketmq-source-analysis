@@ -93,6 +93,7 @@ public class ProducerManager {
                                 RemotingUtil.closeChannel(info.getChannel());
                             }
                         }
+                        // 这里没有在外层判断 HashMap 的 size 是否为空
                     }
                 } finally {
                     this.groupChannelLock.unlock();
