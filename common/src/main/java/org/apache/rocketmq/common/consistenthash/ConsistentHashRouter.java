@@ -28,6 +28,7 @@ import java.util.TreeMap;
  * Method routeNode will return a Node instance which the object key should be allocated to according to consistent hash
  * algorithm
  */
+// 一致性 hash 算法实现
 public class ConsistentHashRouter<T extends Node> {
     private final SortedMap<Long, VirtualNode<T>> ring = new TreeMap<Long, VirtualNode<T>>();
     private final HashFunction hashFunction;
@@ -59,6 +60,7 @@ public class ConsistentHashRouter<T extends Node> {
      * @param pNode physical node needs added to hash ring
      * @param vNodeCount the number of virtual node of the physical node. Value should be greater than or equals to 0
      */
+    // 添加 ring 上的节点，vNodeCount 是虚拟节点的数目，就是要将一个 pNode 对应到多少虚拟节点
     public void addNode(T pNode, int vNodeCount) {
         if (vNodeCount < 0)
             throw new IllegalArgumentException("illegal virtual node counts :" + vNodeCount);
@@ -72,6 +74,7 @@ public class ConsistentHashRouter<T extends Node> {
     /**
      * remove the physical node from the hash ring
      */
+    // 摘除环上的 pNode，删除 pNode 对应的虚拟节点
     public void removeNode(T pNode) {
         Iterator<Long> it = ring.keySet().iterator();
         while (it.hasNext()) {
@@ -88,6 +91,7 @@ public class ConsistentHashRouter<T extends Node> {
      *
      * @param objectKey the object key to find a nearest Node
      */
+    // 找到 objectKey 对应的虚拟节点，进而找到对应的物理节点
     public T routeNode(String objectKey) {
         if (ring.isEmpty()) {
             return null;
@@ -98,6 +102,7 @@ public class ConsistentHashRouter<T extends Node> {
         return ring.get(nodeHashVal).getPhysicalNode();
     }
 
+    // 遍历虚拟节点，查看 pNode 的虚拟节点有多少个
     public int getExistingReplicas(T pNode) {
         int replicas = 0;
         for (VirtualNode<T> vNode : ring.values()) {
@@ -109,6 +114,7 @@ public class ConsistentHashRouter<T extends Node> {
     }
 
     //default hash function
+    // 默认的 hash 函数
     private static class MD5Hash implements HashFunction {
         MessageDigest instance;
 
@@ -128,7 +134,7 @@ public class ConsistentHashRouter<T extends Node> {
             long h = 0;
             for (int i = 0; i < 4; i++) {
                 h <<= 8;
-                h |= ((int) digest[i]) & 0xFF;
+                h |= ((int) digest[i]) & 0xFF;  // 全 1 的 byte
             }
             return h;
         }

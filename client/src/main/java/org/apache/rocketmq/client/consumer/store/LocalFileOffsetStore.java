@@ -38,6 +38,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 /**
  * Local storage implementation
  */
+// 本地文件实现的 offsetStore
 public class LocalFileOffsetStore implements OffsetStore {
     public final static String LOCAL_OFFSET_STORE_DIR = System.getProperty(
         "rocketmq.client.localOffsetStoreDir",
@@ -58,6 +59,7 @@ public class LocalFileOffsetStore implements OffsetStore {
             "offsets.json";
     }
 
+    // 从本地存储中 load 数据到内存
     @Override
     public void load() throws MQClientException {
         OffsetSerializeWrapper offsetSerializeWrapper = this.readLocalOffset();
@@ -74,6 +76,7 @@ public class LocalFileOffsetStore implements OffsetStore {
         }
     }
 
+    // 更新 offset
     @Override
     public void updateOffset(MessageQueue mq, long offset, boolean increaseOnly) {
         if (mq != null) {
@@ -83,7 +86,9 @@ public class LocalFileOffsetStore implements OffsetStore {
             }
 
             if (null != offsetOld) {
+                // 递增写入
                 if (increaseOnly) {
+                    // 当 offset 大于 offsetOld 中的 value 的时候，set
                     MixAll.compareAndIncreaseOnly(offsetOld, offset);
                 } else {
                     offsetOld.set(offset);
@@ -96,7 +101,9 @@ public class LocalFileOffsetStore implements OffsetStore {
     public long readOffset(final MessageQueue mq, final ReadOffsetType type) {
         if (mq != null) {
             switch (type) {
+                // 先从内存中读，然后从 store 中读
                 case MEMORY_FIRST_THEN_STORE:
+                // 从内存中读
                 case READ_FROM_MEMORY: {
                     AtomicLong offset = this.offsetTable.get(mq);
                     if (offset != null) {
@@ -108,6 +115,7 @@ public class LocalFileOffsetStore implements OffsetStore {
                 case READ_FROM_STORE: {
                     OffsetSerializeWrapper offsetSerializeWrapper;
                     try {
+                        // 从磁盘中序列化 kv
                         offsetSerializeWrapper = this.readLocalOffset();
                     } catch (MQClientException e) {
                         return -1;
@@ -128,6 +136,7 @@ public class LocalFileOffsetStore implements OffsetStore {
         return -1;
     }
 
+    // 持久化 mqs 中的 k 对应的 kv pair
     @Override
     public void persistAll(Set<MessageQueue> mqs) {
         if (null == mqs || mqs.isEmpty())
@@ -166,6 +175,7 @@ public class LocalFileOffsetStore implements OffsetStore {
 
     }
 
+    // clone topic 参数的 kv pair
     @Override
     public Map<MessageQueue, Long> cloneOffsetTable(String topic) {
         Map<MessageQueue, Long> cloneOffsetTable = new HashMap<MessageQueue, Long>();
@@ -175,11 +185,11 @@ public class LocalFileOffsetStore implements OffsetStore {
                 continue;
             }
             cloneOffsetTable.put(mq, entry.getValue().get());
-
         }
         return cloneOffsetTable;
     }
 
+    // 读取本地 offset
     private OffsetSerializeWrapper readLocalOffset() throws MQClientException {
         String content = null;
         try {
@@ -203,6 +213,7 @@ public class LocalFileOffsetStore implements OffsetStore {
         }
     }
 
+    // 从 backup 文件中读取
     private OffsetSerializeWrapper readLocalOffsetBak() throws MQClientException {
         String content = null;
         try {

@@ -30,6 +30,7 @@ import org.apache.rocketmq.common.message.MessageQueue;
 /**
  * Consistent Hashing queue algorithm
  */
+// 一致性 hash 方法分配
 public class AllocateMessageQueueConsistentHash implements AllocateMessageQueueStrategy {
     private final InternalLogger log = ClientLogger.getLog();
 
@@ -37,7 +38,7 @@ public class AllocateMessageQueueConsistentHash implements AllocateMessageQueueS
     private final HashFunction customHashFunction;
 
     public AllocateMessageQueueConsistentHash() {
-        this(10);
+        this(10);  // 这个 10 可以抽成常量
     }
 
     public AllocateMessageQueueConsistentHash(int virtualNodeCnt) {

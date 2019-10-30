@@ -34,6 +34,9 @@ import org.apache.rocketmq.logging.InternalLogger;
  * should only be allocated to those. Otherwise, those message queues can be shared along all consumers since there are
  * no alive consumer to monopolize them.
  */
+// 基于机房近端优先级的分配策略代理，一个真正的分配策略可以在 AllocateMachineRoomNearby 中被定义
+// 如果在机房中有任何活着的消费者，部署在相同机房的 broker 中的 message queue 应该分配给这些消费者
+// 否则，这些 message queue 可以被所有消费者共享，因为同机房中没有活着的消费者
 public class AllocateMachineRoomNearby implements AllocateMessageQueueStrategy {
     private final InternalLogger log = ClientLogger.getLog();
 
@@ -68,6 +71,7 @@ public class AllocateMachineRoomNearby implements AllocateMessageQueueStrategy {
         }
 
         List<MessageQueue> result = new ArrayList<MessageQueue>();
+        // bug
         if (!cidAll.contains(currentCID)) {
             log.info("[BUG] ConsumerGroup: {} The consumerId: {} not in cidAll: {}",
                 consumerGroup,
@@ -77,9 +81,10 @@ public class AllocateMachineRoomNearby implements AllocateMessageQueueStrategy {
         }
 
         //group mq by machine room
+        // k 是机房，v 是 k 这个机房中的 mq 集合
         Map<String/*machine room */, List<MessageQueue>> mr2Mq = new TreeMap<String, List<MessageQueue>>();
         for (MessageQueue mq : mqAll) {
-            String brokerMachineRoom = machineRoomResolver.brokerDeployIn(mq);
+            String brokerMachineRoom = machineRoomResolver.brokerDeployIn(mq);  // 获得 mq 的所在的机房
             if (StringUtils.isNoneEmpty(brokerMachineRoom)) {
                 if (mr2Mq.get(brokerMachineRoom) == null) {
                     mr2Mq.put(brokerMachineRoom, new ArrayList<MessageQueue>());
@@ -93,7 +98,7 @@ public class AllocateMachineRoomNearby implements AllocateMessageQueueStrategy {
         //group consumer by machine room
         Map<String/*machine room */, List<String/*clientId*/>> mr2c = new TreeMap<String, List<String>>();
         for (String cid : cidAll) {
-            String consumerMachineRoom = machineRoomResolver.consumerDeployIn(cid);
+            String consumerMachineRoom = machineRoomResolver.consumerDeployIn(cid);  // 获得 client 所在的机房
             if (StringUtils.isNoneEmpty(consumerMachineRoom)) {
                 if (mr2c.get(consumerMachineRoom) == null) {
                     mr2c.put(consumerMachineRoom, new ArrayList<String>());
@@ -104,9 +109,11 @@ public class AllocateMachineRoomNearby implements AllocateMessageQueueStrategy {
             }
         }
 
+        // 分配结果
         List<MessageQueue> allocateResults = new ArrayList<MessageQueue>();
 
         //1.allocate the mq that deploy in the same machine room with the current consumer
+        // 首先将 currentCID 所在机房的 mq 分给 该机房的 consumer
         String currentMachineRoom = machineRoomResolver.consumerDeployIn(currentCID);
         List<MessageQueue> mqInThisMachineRoom = mr2Mq.remove(currentMachineRoom);
         List<String> consumerInThisMachineRoom = mr2c.get(currentMachineRoom);
@@ -115,6 +122,7 @@ public class AllocateMachineRoomNearby implements AllocateMessageQueueStrategy {
         }
 
         //2.allocate the rest mq to each machine room if there are no consumer alive in that machine room
+        // 遍历 mq，将 mq 对应的机房没有 consumer 的这些 mq 分配给所有的消费者
         for (String machineRoom : mr2Mq.keySet()) {
             if (!mr2c.containsKey(machineRoom)) { // no alive consumer in the corresponding machine room, so all consumers share these queues
                 allocateResults.addAll(allocateMessageQueueStrategy.allocate(consumerGroup, currentCID, mr2Mq.get(machineRoom), cidAll));

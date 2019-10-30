@@ -32,11 +32,13 @@ public class AllocateMessageQueueByMachineRoom implements AllocateMessageQueueSt
     public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
         List<String> cidAll) {
         List<MessageQueue> result = new ArrayList<MessageQueue>();
+        // 这代码风格明显和前面的不是一个人写的，233333
         int currentIndex = cidAll.indexOf(currentCID);
         if (currentIndex < 0) {
             return result;
         }
         List<MessageQueue> premqAll = new ArrayList<MessageQueue>();
+        // 根据 brokerName 解析出所有有效机房信息(其实是有效 mq), 用 Set 集合去重, 结果存储在 premqAll 中
         for (MessageQueue mq : mqAll) {
             String[] temp = mq.getBrokerName().split("@");
             if (temp.length == 2 && consumeridcs.contains(temp[0])) {
@@ -49,7 +51,7 @@ public class AllocateMessageQueueByMachineRoom implements AllocateMessageQueueSt
         int startIndex = mod * currentIndex;
         int endIndex = startIndex + mod;
         for (int i = startIndex; i < endIndex; i++) {
-            result.add(mqAll.get(i));
+            result.add(mqAll.get(i));  // 我咋觉得这个应该是 premqAll。。。
         }
         if (rem > currentIndex) {
             result.add(premqAll.get(currentIndex + mod * cidAll.size()));

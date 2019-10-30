@@ -26,6 +26,7 @@ import org.apache.rocketmq.common.message.MessageQueue;
 /**
  * Average Hashing queue algorithm
  */
+// 平均分配算法
 public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrategy {
     private final InternalLogger log = ClientLogger.getLog();
 
@@ -51,8 +52,12 @@ public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrate
             return result;
         }
 
+        // 或得 currentCID 在 cidAll 中的位置
         int index = cidAll.indexOf(currentCID);
         int mod = mqAll.size() % cidAll.size();
+        // 如果消费同一个 topic 的相同消费者数大于队列数，则 averageSize = 1
+        // 如果消费者数小于队列数，则 averageSize = 队列数/消费者数
+        // + 1 的原因是，多了几个 mq，index < mod，所以多的 mq，currentCID 能分到
         int averageSize =
             mqAll.size() <= cidAll.size() ? 1 : (mod > 0 && index < mod ? mqAll.size() / cidAll.size()
                 + 1 : mqAll.size() / cidAll.size());

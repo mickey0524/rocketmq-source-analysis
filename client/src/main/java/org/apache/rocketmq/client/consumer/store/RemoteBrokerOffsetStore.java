@@ -39,6 +39,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 /**
  * Remote storage implementation
  */
+// 远程存储实现的 OffsetStore
 public class RemoteBrokerOffsetStore implements OffsetStore {
     private final static InternalLogger log = ClientLogger.getLog();
     private final MQClientInstance mQClientFactory;
@@ -228,6 +229,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
         }
     }
 
+    // 这里是和 LocalFileOffsetStore 不同的地方
     private long fetchConsumeOffsetFromBroker(MessageQueue mq) throws RemotingException, MQBrokerException,
         InterruptedException, MQClientException {
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInAdmin(mq.getBrokerName());

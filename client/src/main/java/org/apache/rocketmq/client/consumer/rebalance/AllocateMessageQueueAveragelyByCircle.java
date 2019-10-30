@@ -26,6 +26,8 @@ import org.apache.rocketmq.common.message.MessageQueue;
 /**
  * Cycle average Hashing queue algorithm
  */
+// 环形平均分配算法，这个和前一个的不同之处是
+// 之前分配的 queue 是连续的，这里是跳跃的
 public class AllocateMessageQueueAveragelyByCircle implements AllocateMessageQueueStrategy {
     private final InternalLogger log = ClientLogger.getLog();
 
