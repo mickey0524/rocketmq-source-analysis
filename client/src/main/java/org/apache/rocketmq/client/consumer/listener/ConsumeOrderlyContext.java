@@ -21,10 +21,11 @@ import org.apache.rocketmq.common.message.MessageQueue;
 /**
  * Consumer Orderly consumption context
  */
+// 消费者有序消费
 public class ConsumeOrderlyContext {
     private final MessageQueue messageQueue;
     private boolean autoCommit = true;
-    private long suspendCurrentQueueTimeMillis = -1;
+    private long suspendCurrentQueueTimeMillis = -1;  // 因为要有序消费，所以可能需要暂停当前的 queue
 
     public ConsumeOrderlyContext(MessageQueue messageQueue) {
         this.messageQueue = messageQueue;

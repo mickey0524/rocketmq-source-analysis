@@ -91,7 +91,7 @@ public class MQClientInstance {
     private final ClientConfig clientConfig;
     private final int instanceIndex;
     private final String clientId;
-    private final long bootTimestamp = System.currentTimeMillis();
+    private final long bootTimestamp = System.currentTimeMillis();  // 启动时间
     private final ConcurrentMap<String/* group */, MQProducerInner> producerTable = new ConcurrentHashMap<String, MQProducerInner>();
     private final ConcurrentMap<String/* group */, MQConsumerInner> consumerTable = new ConcurrentHashMap<String, MQConsumerInner>();
     private final ConcurrentMap<String/* group */, MQAdminExtInner> adminExtTable = new ConcurrentHashMap<String, MQAdminExtInner>();
@@ -120,7 +120,7 @@ public class MQClientInstance {
     private ServiceState serviceState = ServiceState.CREATE_JUST;
     private DatagramSocket datagramSocket;
     private Random random = new Random();
-
+    
     public MQClientInstance(ClientConfig clientConfig, int instanceIndex, String clientId) {
         this(clientConfig, instanceIndex, clientId, null);
     }

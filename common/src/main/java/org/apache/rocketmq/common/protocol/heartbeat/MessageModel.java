@@ -23,6 +23,8 @@ package org.apache.rocketmq.common.protocol.heartbeat;
 /**
  * Message model
  */
+// 消息消费模型，集群消费的话，一个 consumerGroup 中的 consumer 会均分掉 MQ
+// 广播消费的话，一个 consumerGroup 中的每个 consumer 都会消费所有的 MQ
 public enum MessageModel {
     /**
      * broadcast

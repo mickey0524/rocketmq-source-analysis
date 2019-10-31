@@ -29,6 +29,12 @@ public class ConsumeConcurrentlyContext {
      * 0,broker control retry frequency<br>
      * >0,client control retry frequency
      */
+    /**
+     * 下次消息重试延时时间
+     * -1，表示不重试，直接进入死信队列
+     * 0，表示由服务器根据重试次数自动叠加
+     * >0，表示客户端强制指定延时Level
+     */
     private int delayLevelWhenNextConsume = 0;
     private int ackIndex = Integer.MAX_VALUE;
 

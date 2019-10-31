@@ -136,7 +136,7 @@ public class LocalFileOffsetStore implements OffsetStore {
         return -1;
     }
 
-    // 持久化 mqs 中的 k 对应的 kv pair
+    // 持久化 mqs 中的 k 对应的 v
     @Override
     public void persistAll(Set<MessageQueue> mqs) {
         if (null == mqs || mqs.isEmpty())

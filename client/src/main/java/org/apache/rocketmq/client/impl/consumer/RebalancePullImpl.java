@@ -25,6 +25,7 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.heartbeat.ConsumeType;
 import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 
+// pull 模式的 rebalance
 public class RebalancePullImpl extends RebalanceImpl {
     private final DefaultMQPullConsumerImpl defaultMQPullConsumerImpl;
 
@@ -58,6 +59,7 @@ public class RebalancePullImpl extends RebalanceImpl {
         return true;
     }
 
+    // pull 模式
     @Override
     public ConsumeType consumeType() {
         return ConsumeType.CONSUME_ACTIVELY;

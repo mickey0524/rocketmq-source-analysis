@@ -20,9 +20,11 @@ public enum ConsumeConcurrentlyStatus {
     /**
      * Success consumption
      */
+    // 成功消费
     CONSUME_SUCCESS,
     /**
      * Failure consumption,later try to consume
      */
+    // 消费失败，随后再尝试
     RECONSUME_LATER;
 }
