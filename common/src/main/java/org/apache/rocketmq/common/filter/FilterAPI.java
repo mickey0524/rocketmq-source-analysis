@@ -19,6 +19,7 @@ package org.apache.rocketmq.common.filter;
 import java.net.URL;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 
+// 过滤的 API
 public class FilterAPI {
     public static URL classFile(final String className) {
         final String javaSource = simpleClassName(className) + ".java";
@@ -36,6 +37,7 @@ public class FilterAPI {
         return simple;
     }
 
+    // 创建 SubscriptionData 实例
     public static SubscriptionData buildSubscriptionData(final String consumerGroup, String topic,
         String subString) throws Exception {
         SubscriptionData subscriptionData = new SubscriptionData();
@@ -65,6 +67,7 @@ public class FilterAPI {
         return subscriptionData;
     }
 
+    // 创建 SubscriptionData 实例
     public static SubscriptionData build(final String topic, final String subString,
         final String type) throws Exception {
         if (ExpressionType.TAG.equals(type) || type == null) {

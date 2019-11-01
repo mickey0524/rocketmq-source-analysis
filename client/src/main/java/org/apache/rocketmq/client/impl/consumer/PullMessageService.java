@@ -42,7 +42,7 @@ public class PullMessageService extends ServiceThread {
     public PullMessageService(MQClientInstance mQClientFactory) {
         this.mQClientFactory = mQClientFactory;
     }
-
+    // 随后执行 pull request 请求
     public void executePullRequestLater(final PullRequest pullRequest, final long timeDelay) {
         if (!isStopped()) {
             this.scheduledExecutorService.schedule(new Runnable() {
@@ -56,6 +56,7 @@ public class PullMessageService extends ServiceThread {
         }
     }
 
+    // 将 pullRequest 加入队列
     public void executePullRequestImmediately(final PullRequest pullRequest) {
         try {
             this.pullRequestQueue.put(pullRequest);
@@ -64,6 +65,7 @@ public class PullMessageService extends ServiceThread {
         }
     }
 
+    // 随后执行 task
     public void executeTaskLater(final Runnable r, final long timeDelay) {
         if (!isStopped()) {
             this.scheduledExecutorService.schedule(r, timeDelay, TimeUnit.MILLISECONDS);
@@ -76,6 +78,7 @@ public class PullMessageService extends ServiceThread {
         return scheduledExecutorService;
     }
 
+    // pull message
     private void pullMessage(final PullRequest pullRequest) {
         final MQConsumerInner consumer = this.mQClientFactory.selectConsumer(pullRequest.getConsumerGroup());
         if (consumer != null) {

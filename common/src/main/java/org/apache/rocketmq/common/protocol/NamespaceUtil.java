@@ -33,6 +33,7 @@ public class NamespaceUtil {
      * @param resourceWithNamespace, topic/groupId with namespace.
      * @return topic/groupId without namespace.
      */
+    // 保留重试和死信 topic 的标识，同时删去 namespace
     public static String withoutNamespace(String resourceWithNamespace) {
         if (StringUtils.isEmpty(resourceWithNamespace) || isSystemResource(resourceWithNamespace)) {
             return resourceWithNamespace;
@@ -67,11 +68,13 @@ public class NamespaceUtil {
      * @param namespace, namespace to be unpacked.
      * @return topic/groupId without namespace.
      */
+    // 如果 resource 包含了 namespace，删除 namespace
     public static String withoutNamespace(String resourceWithNamespace, String namespace) {
         if (StringUtils.isEmpty(resourceWithNamespace) || StringUtils.isEmpty(namespace)) {
             return resourceWithNamespace;
         }
 
+        // 过滤掉重试和死信 topic
         String resourceWithoutRetryAndDLQ = withOutRetryAndDLQ(resourceWithNamespace);
         if (resourceWithoutRetryAndDLQ.startsWith(namespace + NAMESPACE_SEPARATOR)) {
             return withoutNamespace(resourceWithNamespace);
@@ -80,6 +83,7 @@ public class NamespaceUtil {
         return resourceWithNamespace;
     }
 
+    // 添加 namespace 的 prefix
     public static String wrapNamespace(String namespace, String resourceWithOutNamespace) {
         if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(resourceWithOutNamespace)) {
             return resourceWithOutNamespace;
@@ -104,6 +108,7 @@ public class NamespaceUtil {
 
     }
 
+    // 是否已经是 namespace 的命名空间
     public static boolean isAlreadyWithNamespace(String resource, String namespace) {
         if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(resource) || isSystemResource(resource)) {
             return false;
@@ -138,6 +143,7 @@ public class NamespaceUtil {
         return index > 0 ? resourceWithoutRetryAndDLQ.substring(0, index) : STRING_BLANK;
     }
 
+    // 过滤掉重试和死信 topic 的 prefix
     private static String withOutRetryAndDLQ(String originalResource) {
         if (StringUtils.isEmpty(originalResource)) {
             return STRING_BLANK;
@@ -159,6 +165,7 @@ public class NamespaceUtil {
             return false;
         }
 
+        // 系统 topic or 系统 resource
         if (MixAll.isSystemTopic(resource) || MixAll.isSysConsumerGroup(resource)) {
             return true;
         }
@@ -166,10 +173,12 @@ public class NamespaceUtil {
         return MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC.equals(resource);
     }
 
+    // 是否是重试 topic
     public static boolean isRetryTopic(String resource) {
         return StringUtils.isNotBlank(resource) && resource.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX);
     }
 
+    // 是否是死信 topic
     public static boolean isDLQTopic(String resource) {
         return StringUtils.isNotBlank(resource) && resource.startsWith(MixAll.DLQ_GROUP_TOPIC_PREFIX);
     }

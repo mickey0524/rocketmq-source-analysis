@@ -66,6 +66,7 @@ import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
+// 一个消费分组对应一个 MQConsumerInner，存储在 MQClientInstance.consumerTable 中
 public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     private final InternalLogger log = ClientLogger.getLog();
     private final DefaultMQPullConsumer defaultMQPullConsumer;
@@ -84,6 +85,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         this.rpcHook = rpcHook;
     }
 
+    // 注册消费消息的钩子函数
     public void registerConsumeMessageHook(final ConsumeMessageHook hook) {
         this.consumeMessageHookList.add(hook);
         log.info("register consumeMessageHook Hook, {}", hook.hookName());
@@ -93,11 +95,13 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         createTopic(key, newTopic, queueNum, 0);
     }
 
+    // 创建 topic
     public void createTopic(String key, String newTopic, int queueNum, int topicSysFlag) throws MQClientException {
         this.isRunning();
         this.mQClientFactory.getMQAdminImpl().createTopic(key, newTopic, queueNum, topicSysFlag);
     }
 
+    // 这个命名太秀了。。以 check 打头会好点吧。。
     private void isRunning() throws MQClientException {
         if (this.serviceState != ServiceState.RUNNING) {
             throw new MQClientException("The consumer is not in running status, "
@@ -107,6 +111,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    // 拉取消费 offset
     public long fetchConsumeOffset(MessageQueue mq, boolean fromStore) throws MQClientException {
         this.isRunning();
         return this.offsetStore.readOffset(mq, fromStore ? ReadOffsetType.READ_FROM_STORE : ReadOffsetType.MEMORY_FIRST_THEN_STORE);
@@ -118,7 +123,9 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
             throw new IllegalArgumentException("topic is null");
         }
 
+        // 获取 processQueueTable
         ConcurrentMap<MessageQueue, ProcessQueue> mqTable = this.rebalanceImpl.getProcessQueueTable();
+        // filter 出对应 topic 的 MQ
         Set<MessageQueue> mqResult = new HashSet<MessageQueue>();
         for (MessageQueue mq : mqTable.keySet()) {
             if (mq.getTopic().equals(topic)) {
@@ -129,11 +136,13 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return parseSubscribeMessageQueues(mqResult);
     }
 
+    // 拉取发布的 MQ
     public List<MessageQueue> fetchPublishMessageQueues(String topic) throws MQClientException {
         this.isRunning();
         return this.mQClientFactory.getMQAdminImpl().fetchPublishMessageQueues(topic);
     }
 
+    // 拉取订阅的 MQ
     public Set<MessageQueue> fetchSubscribeMessageQueues(String topic) throws MQClientException {
         this.isRunning();
         // check if has info in memory, otherwise invoke api.
@@ -145,9 +154,11 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return parseSubscribeMessageQueues(result);
     }
 
+    // 过滤 namespace，得到用户定义的 topic
     public Set<MessageQueue> parseSubscribeMessageQueues(Set<MessageQueue> queueSet) {
         Set<MessageQueue> resultQueues = new HashSet<MessageQueue>();
         for (MessageQueue messageQueue : queueSet) {
+            // 过滤掉 namespace，得到用户定义的 topic
             String userTopic = NamespaceUtil.withoutNamespace(messageQueue.getTopic(),
                 this.defaultMQPullConsumer.getNamespace());
             resultQueues.add(new MessageQueue(userTopic, messageQueue.getBrokerName(), messageQueue.getQueueId()));
@@ -192,6 +203,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return this.pullSyncImpl(mq, subscriptionData, offset, maxNums, false, timeout);
     }
 
+    // 获取 SubscriptionData
     private SubscriptionData getSubscriptionData(MessageQueue mq, String subExpression)
         throws MQClientException {
 
@@ -200,6 +212,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
 
         try {
+            // 切分 subExpression，填充 tagsSet 和 codeSet，用于后续过滤
             return FilterAPI.buildSubscriptionData(this.defaultMQPullConsumer.getConsumerGroup(),
                 mq.getTopic(), subExpression);
         } catch (Exception e) {
@@ -222,6 +235,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    // 同步 pull
     private PullResult pullSyncImpl(MessageQueue mq, SubscriptionData subscriptionData, long offset, int maxNums, boolean block,
         long timeout)
         throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
@@ -246,6 +260,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         long timeoutMillis = block ? this.defaultMQPullConsumer.getConsumerTimeoutMillisWhenSuspend() : timeout;
 
         boolean isTagType = ExpressionType.isTagType(subscriptionData.getExpressionType());
+        // 调用 pullAPIWrapper 中的接口获取 PullResult
         PullResult pullResult = this.pullAPIWrapper.pullKernelImpl(
             mq,
             subscriptionData.getSubString(),
@@ -258,7 +273,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
             this.defaultMQPullConsumer.getBrokerSuspendMaxTimeMillis(),
             timeoutMillis,
             CommunicationMode.SYNC,
-            null
+            null  // 同步的话，不需要 PullCallback
         );
         this.pullAPIWrapper.processPullResult(mq, pullResult, subscriptionData);
         //If namespace is not null , reset Topic without namespace.
@@ -279,12 +294,14 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return pullResult;
     }
 
+    // 删除 topic 的 namespace 前缀
     public void resetTopic(List<MessageExt> msgList) {
         if (null == msgList || msgList.size() == 0) {
             return;
         }
 
-        //If namespace not null , reset Topic without namespace.
+        // If namespace not null, reset Topic without namespace.
+        // 如果 namespace 不为 null，删除 topic 的 namespace 前缀
         for (MessageExt messageExt : msgList) {
             if (null != this.getDefaultMQPullConsumer().getNamespace()) {
                 messageExt.setTopic(NamespaceUtil.withoutNamespace(messageExt.getTopic(), this.defaultMQPullConsumer.getNamespace()));
@@ -293,6 +310,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
 
     }
 
+    // 补充 rebalanceImpl 中 topic 对应的 SubscriptionData
     public void subscriptionAutomatically(final String topic) {
         if (!this.rebalanceImpl.getSubscriptionInner().containsKey(topic)) {
             try {
@@ -304,6 +322,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    // 取消订阅 topic
     public void unsubscribe(String topic) {
         this.rebalanceImpl.getSubscriptionInner().remove(topic);
     }
@@ -313,6 +332,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return this.defaultMQPullConsumer.getConsumerGroup();
     }
 
+    // 执行消费前的钩子
     public void executeHookBefore(final ConsumeMessageContext context) {
         if (!this.consumeMessageHookList.isEmpty()) {
             for (ConsumeMessageHook hook : this.consumeMessageHookList) {
@@ -324,6 +344,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    // 执行消费后的钩子
     public void executeHookAfter(final ConsumeMessageContext context) {
         if (!this.consumeMessageHookList.isEmpty()) {
             for (ConsumeMessageHook hook : this.consumeMessageHookList) {
@@ -340,6 +361,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return this.defaultMQPullConsumer.getMessageModel();
     }
 
+    // pull 消费模式
     @Override
     public ConsumeType consumeType() {
         return ConsumeType.CONSUME_ACTIVELY;
@@ -350,6 +372,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
     }
 
+    // 为所有的 topic 生成 SubscriptionData
     @Override
     public Set<SubscriptionData> subscriptions() {
         Set<SubscriptionData> result = new HashSet<SubscriptionData>();
@@ -380,6 +403,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    // 持久化消费 offset
     @Override
     public void persistConsumerOffset() {
         try {
@@ -393,6 +417,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    // 更新 topic 对应的 MQ set
     @Override
     public void updateTopicSubscribeInfo(String topic, Set<MessageQueue> info) {
         Map<String, SubscriptionData> subTable = this.rebalanceImpl.getSubscriptionInner();
@@ -403,6 +428,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    // 查看是否需要更新
     @Override
     public boolean isSubscribeTopicNeedUpdate(String topic) {
         Map<String, SubscriptionData> subTable = this.rebalanceImpl.getSubscriptionInner();
@@ -458,6 +484,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         this.pullAsyncImpl(mq, subscriptionData, offset, maxNums, pullCallback, false, timeout);
     }
 
+    // 异步拉取
     private void pullAsyncImpl(
         final MessageQueue mq,
         final SubscriptionData subscriptionData,
@@ -523,6 +550,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    // block 模式的同步 pull
     public PullResult pullBlockIfNotFound(MessageQueue mq, String subExpression, long offset, int maxNums)
         throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         SubscriptionData subscriptionData = getSubscriptionData(mq, subExpression);
@@ -533,6 +561,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return defaultMQPullConsumer;
     }
 
+    // block 模式的异步 pull
     public void pullBlockIfNotFound(MessageQueue mq, String subExpression, long offset, int maxNums,
         PullCallback pullCallback)
         throws MQClientException, RemotingException, InterruptedException {
@@ -571,6 +600,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     public void sendMessageBack(MessageExt msg, int delayLevel, final String brokerName, String consumerGroup)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
         try {
+            // broker 的地址
             String brokerAddr = (null != brokerName) ? this.mQClientFactory.findBrokerAddressInPublish(brokerName)
                 : RemotingHelper.parseSocketAddressAddr(msg.getStoreHost());
 
@@ -685,6 +715,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
 
     }
 
+    // 检查配置
     private void checkConfig() throws MQClientException {
         // check consumerGroup
         Validators.checkGroup(this.defaultMQPullConsumer.getConsumerGroup());
@@ -732,6 +763,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    // 根据 defaultMQPullConsumer 中的 topic 更新 rebalanceImpl 的 SubscriptionData HashMap
     private void copySubscription() throws MQClientException {
         try {
             Set<String> registerTopics = this.defaultMQPullConsumer.getRegisterTopics();
