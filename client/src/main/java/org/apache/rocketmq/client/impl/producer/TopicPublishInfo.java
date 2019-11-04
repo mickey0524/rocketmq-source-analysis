@@ -23,9 +23,11 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 
+// 消息投递的 info 类
 public class TopicPublishInfo {
     private boolean orderTopic = false;
     private boolean haveTopicRouterInfo = false;
+    // messageQueueList 是投递消息的时候对应的topic队列，每次投递的时候乱序选择队列投递
     private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
     private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();
     private TopicRouteData topicRouteData;
@@ -66,6 +68,7 @@ public class TopicPublishInfo {
         this.haveTopicRouterInfo = haveTopicRouterInfo;
     }
 
+    // 选择一个不在 brokerName 上的 MQ 进行投递
     public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
         if (lastBrokerName == null) {
             return selectOneMessageQueue();
@@ -84,6 +87,7 @@ public class TopicPublishInfo {
         }
     }
 
+    // 选择一个 MQ 进行投递，从 messageQueueList 中所有的 MQ 中轮询选择
     public MessageQueue selectOneMessageQueue() {
         int index = this.sendWhichQueue.getAndIncrement();
         int pos = Math.abs(index) % this.messageQueueList.size();

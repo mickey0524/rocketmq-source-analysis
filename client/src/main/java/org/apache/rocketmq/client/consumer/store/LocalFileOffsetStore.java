@@ -38,7 +38,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 /**
  * Local storage implementation
  */
-// 本地文件实现的 offsetStore
+// 本地文件实现的 offsetStore，服务于 BROADCAST 的模式
 public class LocalFileOffsetStore implements OffsetStore {
     public final static String LOCAL_OFFSET_STORE_DIR = System.getProperty(
         "rocketmq.client.localOffsetStoreDir",

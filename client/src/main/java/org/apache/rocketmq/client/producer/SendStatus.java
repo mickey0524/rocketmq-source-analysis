@@ -16,6 +16,7 @@
  */
 package org.apache.rocketmq.client.producer;
 
+// 发送状态，这些状态是根据 MessageStore 的反馈来决定的
 public enum SendStatus {
     SEND_OK,
     FLUSH_DISK_TIMEOUT,

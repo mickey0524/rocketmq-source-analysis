@@ -87,6 +87,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 
+// 默认的 Producer 实现
 public class DefaultMQProducerImpl implements MQProducerInner {
     private final InternalLogger log = ClientLogger.getLog();
     private final Random random = new Random();
@@ -104,8 +105,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
     private MQFaultStrategy mqFaultStrategy = new MQFaultStrategy();
 
-    private final BlockingQueue<Runnable> asyncSenderThreadPoolQueue;
-    private final ExecutorService defaultAsyncSenderExecutor;
+    private final BlockingQueue<Runnable> asyncSenderThreadPoolQueue;  // 异步发送的队列
+    private final ExecutorService defaultAsyncSenderExecutor;  // 异步发送的线程池
     private ExecutorService asyncSenderExecutor;
 
     public DefaultMQProducerImpl(final DefaultMQProducer defaultMQProducer) {
@@ -169,6 +170,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.start(true);
     }
 
+    // 启动服务
     public void start(final boolean startFactory) throws MQClientException {
         switch (this.serviceState) {
             case CREATE_JUST:
@@ -214,6 +216,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
     }
 
+    // 检查配置
     private void checkConfig() throws MQClientException {
         Validators.checkGroup(this.defaultMQProducer.getProducerGroup());
 
@@ -231,6 +234,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.shutdown(true);
     }
 
+    // 关闭服务
     public void shutdown(final boolean shutdownFactory) {
         switch (this.serviceState) {
             case CREATE_JUST:
@@ -463,6 +467,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     /**
      * DEFAULT ASYNC -------------------------------------------------------
      */
+    // 默认异步发送消息，所以需要传入 SendCallback
     public void send(Message msg,
                      SendCallback sendCallback) throws MQClientException, RemotingException, InterruptedException {
         send(msg, sendCallback, this.defaultMQProducer.getSendMsgTimeout());
@@ -488,11 +493,13 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     long costTime = System.currentTimeMillis() - beginStartTime;
                     if (timeout > costTime) {
                         try {
+                            // 调用 sendDefaultImpl 方法异步发送消息
                             sendDefaultImpl(msg, CommunicationMode.ASYNC, sendCallback, timeout - costTime);
                         } catch (Exception e) {
                             sendCallback.onException(e);
                         }
                     } else {
+                        // 发送超时
                         sendCallback.onException(
                             new RemotingTooMuchRequestException("DEFAULT ASYNC send call timeout"));
                     }
@@ -505,7 +512,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
     }
 
-
+    // 选取一个 MQ
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         return this.mqFaultStrategy.selectOneMessageQueue(tpInfo, lastBrokerName);
     }
@@ -521,6 +528,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         final long timeout
     ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         this.makeSureStateOK();
+        // 检查消息是否合法
         Validators.checkMessage(msg, this.defaultMQProducer);
 
         final long invokeID = random.nextLong();
@@ -663,6 +671,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             null).setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
     }
 
+    // 获取 TopicPublishInfo
     private TopicPublishInfo tryToFindTopicPublishInfo(final String topic) {
         TopicPublishInfo topicPublishInfo = this.topicPublishInfoTable.get(topic);
         if (null == topicPublishInfo || !topicPublishInfo.ok()) {

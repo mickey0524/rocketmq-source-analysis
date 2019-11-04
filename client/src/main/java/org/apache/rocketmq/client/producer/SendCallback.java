@@ -16,6 +16,7 @@
  */
 package org.apache.rocketmq.client.producer;
 
+// 发送消息的回调函数，用于 ASYNC 模式的消息发送
 public interface SendCallback {
     void onSuccess(final SendResult sendResult);
 

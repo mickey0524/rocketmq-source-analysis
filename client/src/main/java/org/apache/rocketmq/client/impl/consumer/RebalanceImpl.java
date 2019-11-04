@@ -224,7 +224,7 @@ public abstract class RebalanceImpl {
         }
     }
 
-    // 执行 rebalance 操作
+    // 执行 rebalance 操作，isOrder 是否有序消费
     public void doRebalance(final boolean isOrder) {
         Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
         if (subTable != null) {

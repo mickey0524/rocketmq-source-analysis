@@ -156,6 +156,7 @@ public class RebalancePushImpl extends RebalanceImpl {
                     result = lastOffset;
                 }
                 // First start,no offset
+                // 第一次 start，之前 store 中没有 offset
                 else if (-1 == lastOffset) {
                     if (mq.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                         result = 0L;

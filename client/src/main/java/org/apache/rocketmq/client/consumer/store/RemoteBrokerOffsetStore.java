@@ -39,7 +39,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 /**
  * Remote storage implementation
  */
-// 远程存储实现的 OffsetStore
+// 远程存储实现的 OffsetStore，服务于 CLUSTER 的模式
 public class RemoteBrokerOffsetStore implements OffsetStore {
     private final static InternalLogger log = ClientLogger.getLog();
     private final MQClientInstance mQClientFactory;
@@ -90,6 +90,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
                 case READ_FROM_STORE: {
                     try {
                         long brokerOffset = this.fetchConsumeOffsetFromBroker(mq);
+                        // 这里为啥要先包装 AtomicLong，然后又 get 取出，不是很明白
                         AtomicLong offset = new AtomicLong(brokerOffset);
                         this.updateOffset(mq, offset.get(), false);
                         return brokerOffset;
@@ -203,9 +204,10 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
     @Override
     public void updateConsumeOffsetToBroker(MessageQueue mq, long offset, boolean isOneway) throws RemotingException,
         MQBrokerException, InterruptedException, MQClientException {
+        // get broker 的地址
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInAdmin(mq.getBrokerName());
         if (null == findBrokerResult) {
-
+            // 如果 broker 的地址为空的话，从 namesrv 中获取最新的
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
             findBrokerResult = this.mQClientFactory.findBrokerAddressInAdmin(mq.getBrokerName());
         }
@@ -232,6 +234,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
     // 这里是和 LocalFileOffsetStore 不同的地方
     private long fetchConsumeOffsetFromBroker(MessageQueue mq) throws RemotingException, MQBrokerException,
         InterruptedException, MQClientException {
+        // 同样，先获取 broker 的地址
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInAdmin(mq.getBrokerName());
         if (null == findBrokerResult) {
 
