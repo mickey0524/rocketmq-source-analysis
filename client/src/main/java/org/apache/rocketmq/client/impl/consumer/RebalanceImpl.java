@@ -390,7 +390,7 @@ public abstract class RebalanceImpl {
                     log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
                     continue;
                 }
-
+                // 删除脏的 offset
                 this.removeDirtyOffset(mq);
                 ProcessQueue pq = new ProcessQueue();
                 long nextOffset = this.computePullFromWhere(mq);

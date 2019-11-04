@@ -45,6 +45,7 @@ public class RebalancePullImpl extends RebalanceImpl {
         MessageQueueListener messageQueueListener = this.defaultMQPullConsumerImpl.getDefaultMQPullConsumer().getMessageQueueListener();
         if (messageQueueListener != null) {
             try {
+                // 通知 listener
                 messageQueueListener.messageQueueChanged(topic, mqAll, mqDivided);
             } catch (Throwable e) {
                 log.error("messageQueueChanged exception", e);

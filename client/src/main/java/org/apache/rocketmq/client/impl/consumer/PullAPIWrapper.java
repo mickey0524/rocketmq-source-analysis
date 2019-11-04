@@ -49,6 +49,7 @@ import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 import org.apache.rocketmq.common.sysflag.PullSysFlag;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
+// pull api 的包裹类
 public class PullAPIWrapper {
     private final InternalLogger log = ClientLogger.getLog();
     private final MQClientInstance mQClientFactory;
@@ -63,7 +64,7 @@ public class PullAPIWrapper {
     private ArrayList<FilterMessageHook> filterMessageHookList = new ArrayList<FilterMessageHook>();
 
     public PullAPIWrapper(MQClientInstance mQClientFactory, String consumerGroup, boolean unitMode) {
-        this.mQClientFactory = mQClientFactory;
+        this.mQClientFactory = mQClientFactory;  // 为了获取 broker 的 address
         this.consumerGroup = consumerGroup;
         this.unitMode = unitMode;
     }
@@ -79,6 +80,7 @@ public class PullAPIWrapper {
             List<MessageExt> msgList = MessageDecoder.decodes(byteBuffer);
 
             List<MessageExt> msgListFilterAgain = msgList;
+            // tagsSet 不为空，且没有使用 server filter 
             if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
                 msgListFilterAgain = new ArrayList<MessageExt>(msgList.size());
                 for (MessageExt msg : msgList) {
