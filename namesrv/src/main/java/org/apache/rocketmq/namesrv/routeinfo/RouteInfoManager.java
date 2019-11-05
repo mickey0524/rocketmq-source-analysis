@@ -113,6 +113,8 @@ public class RouteInfoManager {
     }
 
     // 注册 Broker
+    // broker 启动或者管理控制台提交 topic 配置变更给 broker 以后，broker 会发起 register 到 namserver 的动作，把 broker
+    // 自己的元数据以及管理的 topic 一起提交给 nameserver 进行管理，这些信息最后组成所谓的路由信息，由生产者和消费者来使用
     public RegisterBrokerResult registerBroker(
         final String clusterName,
         final String brokerAddr,
