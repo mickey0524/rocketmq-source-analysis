@@ -29,6 +29,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     private final ThreadLocalIndex whichItemWorst = new ThreadLocalIndex();
 
+    // 更新 FaultItem 实例
     @Override
     public void updateFaultItem(final String name, final long currentLatency, final long notAvailableDuration) {
         FaultItem old = this.faultItemTable.get(name);
@@ -48,6 +49,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         }
     }
 
+    // name 对应的 FaultItem 是否可以被使用
     @Override
     public boolean isAvailable(final String name) {
         final FaultItem faultItem = this.faultItemTable.get(name);
@@ -72,7 +74,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         }
 
         if (!tmpList.isEmpty()) {
-            Collections.shuffle(tmpList);
+            Collections.shuffle(tmpList);  // 洗牌操作
 
             Collections.sort(tmpList);
 
@@ -80,6 +82,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             if (half <= 0) {
                 return tmpList.get(0).getName();
             } else {
+                // 尽量选前面的 FaultItem
                 final int i = this.whichItemWorst.getAndIncrement() % half;
                 return tmpList.get(i).getName();
             }
@@ -96,6 +99,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             '}';
     }
 
+    // 出错项，实现了 Comparable 的接口
     class FaultItem implements Comparable<FaultItem> {
         private final String name;
         private volatile long currentLatency;
@@ -105,6 +109,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             this.name = name;
         }
 
+        // 优先比较是否可用，然后比较当前的延迟，最后比较开始的时间
         @Override
         public int compareTo(final FaultItem other) {
             if (this.isAvailable() != other.isAvailable()) {
