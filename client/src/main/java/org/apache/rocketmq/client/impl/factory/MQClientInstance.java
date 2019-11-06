@@ -159,11 +159,13 @@ public class MQClientInstance {
             MQVersion.getVersionDesc(MQVersion.CURRENT_VERSION), RemotingCommand.getSerializeTypeConfigInThisServer());
     }
 
+    // 从 namesrv 处获取 topicRouteData，然后根据这个得到 TopicPublishInfo
     public static TopicPublishInfo topicRouteData2TopicPublishInfo(final String topic, final TopicRouteData route) {
         TopicPublishInfo info = new TopicPublishInfo();
         info.setTopicRouteData(route);
+        // 如果 orderTopicConf 不为 null
         if (route.getOrderTopicConf() != null && route.getOrderTopicConf().length() > 0) {
-            String[] brokers = route.getOrderTopicConf().split(";");
+            String[] brokers = route.getOrderTopicConf().split(";");  // 切分得到 broker 数组
             for (String broker : brokers) {
                 String[] item = broker.split(":");
                 int nums = Integer.parseInt(item[1]);
@@ -176,7 +178,7 @@ public class MQClientInstance {
             info.setOrderTopic(true);
         } else {
             List<QueueData> qds = route.getQueueDatas();
-            Collections.sort(qds);
+            Collections.sort(qds);  // 给 QueueData 排序
             for (QueueData qd : qds) {
                 if (PermName.isWriteable(qd.getPerm())) {
                     BrokerData brokerData = null;
@@ -208,6 +210,7 @@ public class MQClientInstance {
         return info;
     }
 
+    // 从 namesrv 处获取 topicRouteData，然后根据这个得到可以被 read 的 MessageQueue 集合
     public static Set<MessageQueue> topicRouteData2TopicSubscribeInfo(final String topic, final TopicRouteData route) {
         Set<MessageQueue> mqList = new HashSet<MessageQueue>();
         List<QueueData> qds = route.getQueueDatas();
@@ -511,6 +514,7 @@ public class MQClientInstance {
         }
     }
 
+    // 从 namesrv 中获取 topic 的 route info
     public boolean updateTopicRouteInfoFromNameServer(final String topic) {
         return updateTopicRouteInfoFromNameServer(topic, false, null);
     }
@@ -607,7 +611,7 @@ public class MQClientInstance {
             }
         }
     }
-
+    // 从 namesrc 中获取 TopicRouteData
     public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault,
         DefaultMQProducer defaultMQProducer) {
         try {
@@ -636,9 +640,11 @@ public class MQClientInstance {
                             log.info("the topic[{}] route info changed, old[{}] ,new[{}]", topic, old, topicRouteData);
                         }
 
+                        // topic 的 route 改变了，作出应对
                         if (changed) {
                             TopicRouteData cloneTopicRouteData = topicRouteData.cloneTopicRouteData();
 
+                            // 更新 BrokerData
                             for (BrokerData bd : topicRouteData.getBrokerDatas()) {
                                 this.brokerAddrTable.put(bd.getBrokerName(), bd.getBrokerAddrs());
                             }
@@ -788,6 +794,7 @@ public class MQClientInstance {
         }
     }
 
+    // 判断 topicRouteData 是否改变了
     private boolean topicRouteDataIsChange(TopicRouteData olddata, TopicRouteData nowdata) {
         if (olddata == null || nowdata == null)
             return true;
@@ -801,6 +808,7 @@ public class MQClientInstance {
 
     }
 
+    // 从 Producer 和 Consumer 两块来看是否需要 update TopicRouteInfo
     private boolean isNeedUpdateTopicRouteInfo(final String topic) {
         boolean result = false;
         {
@@ -1025,6 +1033,7 @@ public class MQClientInstance {
         return null;
     }
 
+    // publish 的时候得到 brokerAddr
     public String findBrokerAddressInPublish(final String brokerName) {
         HashMap<Long/* brokerId */, String/* address */> map = this.brokerAddrTable.get(brokerName);
         if (map != null && !map.isEmpty()) {
@@ -1034,6 +1043,7 @@ public class MQClientInstance {
         return null;
     }
 
+    // Consumer 拉取消息的时候获取 broker 的地址
     public FindBrokerResult findBrokerAddressInSubscribe(
         final String brokerName,
         final long brokerId,
