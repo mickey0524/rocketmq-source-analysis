@@ -1099,6 +1099,7 @@ public class MQClientAPIImpl {
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
+    // 给 MessageQueue 批量上锁
     public Set<MessageQueue> lockBatchMQ(
         final String addr,
         final LockBatchRequestBody requestBody,
@@ -1121,6 +1122,7 @@ public class MQClientAPIImpl {
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
+    // 给 MessageQueue 批量解锁
     public void unlockBatchMQ(
         final String addr,
         final UnlockBatchRequestBody requestBody,

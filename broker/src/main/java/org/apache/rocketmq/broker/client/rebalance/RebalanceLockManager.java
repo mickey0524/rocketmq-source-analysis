@@ -128,6 +128,7 @@ public class RebalanceLockManager {
             }
         }
 
+        // 处理没上锁的 MQ/被其他 clientId 上锁的 MQ
         if (!notLockedMqs.isEmpty()) {
             try {
                 this.lock.lockInterruptibly();
@@ -140,6 +141,7 @@ public class RebalanceLockManager {
                     // 将没有被上锁的 MessageQueue 和过期的 MessageQueue 加上 clientId 的锁
                     for (MessageQueue mq : notLockedMqs) {
                         LockEntry lockEntry = groupValue.get(mq);
+                        // MQ 没有被任何 clientId 占据
                         if (null == lockEntry) {
                             lockEntry = new LockEntry();
                             lockEntry.setClientId(clientId);
@@ -150,7 +152,8 @@ public class RebalanceLockManager {
                                 clientId,
                                 mq);
                         }
-
+                        
+                        // MQ 已经被 clientId 占据，更新时间戳
                         if (lockEntry.isLocked(clientId)) {
                             lockEntry.setLastUpdateTimestamp(System.currentTimeMillis());
                             lockedMqs.add(mq);

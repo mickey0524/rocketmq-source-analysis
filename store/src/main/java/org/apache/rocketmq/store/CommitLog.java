@@ -702,6 +702,7 @@ public class CommitLog {
         // 也就是说需要 Master 的同步刷盘模式和投递者设置的等待刷盘结果的消息属性一起配合才可以
         if (FlushDiskType.SYNC_FLUSH == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
             final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
+            // 新鲜的消息都是 true，无法消费写回的消息是 false
             if (messageExt.isWaitStoreMsgOK()) {
                 GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
                 service.putRequest(request);
