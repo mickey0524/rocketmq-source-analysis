@@ -67,6 +67,10 @@ public abstract class RebalanceImpl {
     }
 
     // 解锁，unlock 方法为啥不用对 ProcessQueue 做操作呢。。。
+    // 查看调用方法之后，发现 unlock 方法的调用方是 removeUnnecessaryMessageQueue
+    // removeUnnecessaryMessageQueue 在 updateProcessQueueTableInRebalance 中被调用
+    // 在调用 removeUnnecessaryMessageQueue 之前就 drop pq 了
+    // 但是在这里还是可以 defense in depth 一下
     public void unlock(final MessageQueue mq, final boolean oneway) {
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), MixAll.MASTER_ID, true);
         if (findBrokerResult != null) {
@@ -88,6 +92,8 @@ public abstract class RebalanceImpl {
     }
 
     // 解锁所有
+    // 本方法在 ConsumeMessageOrderlyService 中的 unlockAllMQ 中调用了
+    // 在 ConsumeMessageOrderlyService shutdown 的时候，需要执行 unlockAllMQ
     public void unlockAll(final boolean oneway) {
         HashMap<String, Set<MessageQueue>> brokerMqs = this.buildProcessQueueTableByBrokerName();
 
@@ -138,6 +144,8 @@ public abstract class RebalanceImpl {
         return result;
     }
 
+    // lock 方法在 ConsumeMessageOrderlyService 的 lockOneMQ 方法中被调用了
+    // 用于在有序消费的时候上锁
     public boolean lock(final MessageQueue mq) {
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), MixAll.MASTER_ID, true);
         if (findBrokerResult != null) {
@@ -172,6 +180,7 @@ public abstract class RebalanceImpl {
     }
 
     // 给所有 messageQueue 上锁
+    // lockAll 方法在 ConsumeMessageOrderlyService 的 lockMQPeriodically 方法中被调用了
     public void lockAll() {
         HashMap<String, Set<MessageQueue>> brokerMqs = this.buildProcessQueueTableByBrokerName();
 
