@@ -23,6 +23,7 @@ import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 
+// producer 开启 msg trace
 public class TraceProducer {
     public static void main(String[] args) throws MQClientException, InterruptedException {
 

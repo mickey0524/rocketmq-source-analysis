@@ -20,6 +20,7 @@ import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
 
+// 带有命名空间的 Producer
 public class ProducerWithNamespace {
     public static void main(String[] args) throws Exception {
 

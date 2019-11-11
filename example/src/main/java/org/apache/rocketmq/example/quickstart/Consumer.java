@@ -28,6 +28,7 @@ import org.apache.rocketmq.common.message.MessageExt;
 /**
  * This example shows how to subscribe and consume messages using providing {@link DefaultMQPushConsumer}.
  */
+// push 模式的 Consumer，使用的是并发消费
 public class Consumer {
 
     public static void main(String[] args) throws InterruptedException, MQClientException {

@@ -31,7 +31,7 @@ public class PullConsumerWithNamespace {
         DefaultMQPullConsumer pullConsumer = new DefaultMQPullConsumer("InstanceTest", "cidTest");
         pullConsumer.setNamesrvAddr("127.0.0.1:9876");
         pullConsumer.start();
-
+        // 获取 topicTest 对应的 MessageQueue 的集合
         Set<MessageQueue> mqs = pullConsumer.fetchSubscribeMessageQueues("topicTest");
         for (MessageQueue mq : mqs) {
             System.out.printf("Consume from the topic: %s, queue: %s%n", mq.getTopic(), mq);

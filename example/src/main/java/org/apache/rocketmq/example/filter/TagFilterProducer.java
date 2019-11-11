@@ -21,6 +21,7 @@ import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 
+// 发出带 tag 的消息
 public class TagFilterProducer {
 
     public static void main(String[] args) throws Exception {

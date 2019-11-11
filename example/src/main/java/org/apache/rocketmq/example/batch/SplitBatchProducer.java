@@ -39,6 +39,7 @@ public class SplitBatchProducer {
         }
 
         //split the large batch into small ones:
+        // 将大的一批消息分裂成小的一批消息
         ListSplitter splitter = new ListSplitter(messages);
         while (splitter.hasNext()) {
             List<Message> listItem = splitter.next();
@@ -49,7 +50,7 @@ public class SplitBatchProducer {
 }
 
 class ListSplitter implements Iterator<List<Message>> {
-    private int sizeLimit = 1000 * 1000;
+    private int sizeLimit = 1000 * 1000;  // 大小限制
     private final List<Message> messages;
     private int currIndex;
 
@@ -84,8 +85,10 @@ class ListSplitter implements Iterator<List<Message>> {
                 break;
             }
             if (tmpSize + totalSize > sizeLimit) {
+                // 加上这条消息超过限制，所以 break
                 break;
             } else {
+                // 没有超过大小限制
                 totalSize += tmpSize;
             }
 

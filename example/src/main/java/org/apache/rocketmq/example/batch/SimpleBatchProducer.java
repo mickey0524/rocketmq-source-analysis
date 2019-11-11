@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.common.message.Message;
 
+// 批量写入
 public class SimpleBatchProducer {
 
     public static void main(String[] args) throws Exception {

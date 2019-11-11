@@ -26,6 +26,7 @@ import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 
+// 广播模式的消费者，一个 consumer group 中的每个消费者都消费所有的消息
 public class PushConsumer {
 
     public static void main(String[] args) throws InterruptedException, MQClientException {

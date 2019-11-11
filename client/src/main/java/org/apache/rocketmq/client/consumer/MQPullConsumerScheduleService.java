@@ -34,6 +34,7 @@ import org.apache.rocketmq.remoting.RPCHook;
 /**
  * Schedule service for pull consumer
  */
+// pull 类型 consumer 的调度服务
 public class MQPullConsumerScheduleService {
     private final InternalLogger log = ClientLogger.getLog();
     private final MessageQueueListener messageQueueListener = new MessageQueueListenerImpl();
@@ -55,6 +56,7 @@ public class MQPullConsumerScheduleService {
         this.defaultMQPullConsumer.setMessageModel(MessageModel.CLUSTERING);
     }
 
+    // put task
     public void putTask(String topic, Set<MessageQueue> mqNewSet) {
         Iterator<Entry<MessageQueue, PullTaskImpl>> it = this.taskTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -157,6 +159,7 @@ public class MQPullConsumerScheduleService {
         }
     }
 
+    // 一次 pull 的任务
     class PullTaskImpl implements Runnable {
         private final MessageQueue messageQueue;
         private volatile boolean cancelled = false;
@@ -169,6 +172,7 @@ public class MQPullConsumerScheduleService {
         public void run() {
             String topic = this.messageQueue.getTopic();
             if (!this.isCancelled()) {
+                // 获取 topic 对应的 Callback 函数
                 PullTaskCallback pullTaskCallback =
                     MQPullConsumerScheduleService.this.callbackTable.get(topic);
                 if (pullTaskCallback != null) {
