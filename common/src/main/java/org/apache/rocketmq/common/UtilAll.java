@@ -237,12 +237,13 @@ public class UtilAll {
         return (int) (crc32.getValue() & 0x7FFFFFFF);
     }
 
+    // 根据长度为 len 的 byte 数组，得到长度为 2 * len 的 String
     public static String bytes2string(byte[] src) {
         char[] hexChars = new char[src.length * 2];
         for (int j = 0; j < src.length; j++) {
-            int v = src[j] & 0xFF;
-            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
-            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
+            int v = src[j] & 0xFF;  // v 的最大值就是 11111111
+            hexChars[j * 2] = HEX_ARRAY[v >>> 4];  // 右移 4 位后，最大就是 1111，HEX_ARRAY 的长度为 16
+            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F]; // 和 00001111 做与操作，最大也就是 1111
         }
         return new String(hexChars);
     }

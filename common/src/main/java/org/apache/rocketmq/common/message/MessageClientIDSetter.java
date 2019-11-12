@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.rocketmq.common.UtilAll;
 
+// Producer 生成的
 public class MessageClientIDSetter {
     private static final String TOPIC_KEY_SPLITTER = "#";
     private static final int LEN;
@@ -34,20 +35,21 @@ public class MessageClientIDSetter {
         LEN = 4 + 2 + 4 + 4 + 2;
         ByteBuffer tempBuffer = ByteBuffer.allocate(10);
         tempBuffer.position(2);
-        tempBuffer.putInt(UtilAll.getPid());
+        tempBuffer.putInt(UtilAll.getPid());  // 进程 pid
         tempBuffer.position(0);
         try {
-            tempBuffer.put(UtilAll.getIP());
+            tempBuffer.put(UtilAll.getIP());  // 主机 ip
         } catch (Exception e) {
             tempBuffer.put(createFakeIP());
         }
         tempBuffer.position(6);
-        tempBuffer.putInt(MessageClientIDSetter.class.getClassLoader().hashCode());
+        tempBuffer.putInt(MessageClientIDSetter.class.getClassLoader().hashCode());  // 类加载器的 hashCode
         FIX_STRING = UtilAll.bytes2string(tempBuffer.array());
         setStartTime(System.currentTimeMillis());
         COUNTER = new AtomicInteger(0);
     }
 
+    // 设置开始的时间
     private synchronized static void setStartTime(long millis) {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(millis);
@@ -56,9 +58,9 @@ public class MessageClientIDSetter {
         cal.set(Calendar.MINUTE, 0);
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
-        startTime = cal.getTimeInMillis();
+        startTime = cal.getTimeInMillis();  // 月初的零点
         cal.add(Calendar.MONTH, 1);
-        nextStartTime = cal.getTimeInMillis();
+        nextStartTime = cal.getTimeInMillis();  // 一个月之后的零点
     }
 
     public static Date getNearlyTimeFromID(String msgID) {
@@ -101,8 +103,8 @@ public class MessageClientIDSetter {
 
     public static String createUniqID() {
         StringBuilder sb = new StringBuilder(LEN * 2);
-        sb.append(FIX_STRING);
-        sb.append(UtilAll.bytes2string(createUniqIDBuffer()));
+        sb.append(FIX_STRING);  // 20 个字节
+        sb.append(UtilAll.bytes2string(createUniqIDBuffer()));  // 12 个字节
         return sb.toString();
     }
 
@@ -113,11 +115,12 @@ public class MessageClientIDSetter {
             setStartTime(current);
         }
         buffer.position(0);
-        buffer.putInt((int) (System.currentTimeMillis() - startTime));
-        buffer.putShort((short) COUNTER.getAndIncrement());
+        buffer.putInt((int) (System.currentTimeMillis() - startTime));  // 当前离月初零点的时间差
+        buffer.putShort((short) COUNTER.getAndIncrement());  // COUNTER 记录第几个消息
         return buffer.array();
     }
 
+    // 如果 Message 没有设置 uniq_client_message_id，设置一下
     public static void setUniqID(final Message msg) {
         if (msg.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX) == null) {
             msg.putProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX, createUniqID());
@@ -128,13 +131,13 @@ public class MessageClientIDSetter {
         return msg.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
     }
 
+    // 生成假的 ip
     public static byte[] createFakeIP() {
         ByteBuffer bb = ByteBuffer.allocate(8);
-        bb.putLong(System.currentTimeMillis());
+        bb.putLong(System.currentTimeMillis());  // 当前的时间，取后四个字节
         bb.position(4);
         byte[] fakeIP = new byte[4];
         bb.get(fakeIP);
         return fakeIP;
     }
 }
-    

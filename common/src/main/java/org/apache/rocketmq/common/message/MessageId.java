@@ -19,6 +19,8 @@ package org.apache.rocketmq.common.message;
 import java.net.SocketAddress;
 
 // MessageID 类，存储 address 和 offset
+// 这个是 broker 在存入 MessageStore 的时候生成的
+// address + physicalOffset
 public class MessageId {
     private SocketAddress address;
     private long offset;
