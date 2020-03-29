@@ -28,6 +28,8 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.common.protocol.body.KVTable;
 import org.apache.rocketmq.namesrv.NamesrvController;
+
+// KV 配置管理器
 public class KVConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
@@ -42,6 +44,7 @@ public class KVConfigManager {
         this.namesrvController = namesrvController;
     }
 
+    // 加载 JSON 文件
     public void load() {
         String content = null;
         try {
@@ -142,6 +145,7 @@ public class KVConfigManager {
         this.persist();
     }
 
+    // 获取指定 namespace 的 KVList
     public byte[] getKVListByNamespace(final String namespace) {
         try {
             this.lock.readLock().lockInterruptibly();

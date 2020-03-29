@@ -129,7 +129,7 @@ public class RemotingCommand {
         if (classHeader != null) {
             try {
                 CommandCustomHeader objectHeader = classHeader.newInstance();
-                cmd.customHeader = objectHeader;
+                cmd.customHeader = objectHeader;  // 这里又不走 set 方法
             } catch (InstantiationException e) {
                 return null;
             } catch (IllegalAccessException e) {
@@ -250,10 +250,12 @@ public class RemotingCommand {
             return null;
         }
 
+        // 字段会放在 extFields 中
         if (this.extFields != null) {
 
             Field[] fields = getClazzFields(classHeader);
             for (Field field : fields) {
+                // 不为静态字段
                 if (!Modifier.isStatic(field.getModifiers())) {
                     String fieldName = field.getName();  // 拿到字段名称
                     if (!fieldName.startsWith("this")) {
@@ -321,6 +323,7 @@ public class RemotingCommand {
     // 判断字段是否允许为空
     private boolean isFieldNullable(Field field) {
         // NULLABLE_FIELD_CACHE 是一个 hashMap，key 是 Field，value 是 boolean，指代是否允许为空
+        // 不同类中相同名字的 Field HashCode 是不一样的
         if (!NULLABLE_FIELD_CACHE.containsKey(field)) {
             // 利用反射，Field 上有 CFNotNull 注解表示不允许为空
             Annotation annotation = field.getAnnotation(CFNotNull.class);

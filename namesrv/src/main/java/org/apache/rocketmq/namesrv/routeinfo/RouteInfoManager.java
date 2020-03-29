@@ -49,7 +49,7 @@ import org.apache.rocketmq.remoting.common.RemotingUtil;
 
 public class RouteInfoManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
-    private final static long BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;  // broker 的最长存活时间
+    private final static long BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;  // CHANNEL 的最长存活时间
     private final ReadWriteLock lock = new ReentrantReadWriteLock();  // 读写锁
 
     // topicName -> List<QueueData>，一个 topic 可以有多个 Queue（属于不同的 Broker）
@@ -95,7 +95,7 @@ public class RouteInfoManager {
         }
     }
 
-    // 获取全部的 Topic 列表
+    // 获取全部的 Topic 组成的列表
     public byte[] getAllTopicList() {
         TopicList topicList = new TopicList();
         try {
@@ -244,6 +244,7 @@ public class RouteInfoManager {
         }
     }
 
+    // 创建/更新 QueueData
     private void createAndUpdateQueueData(final String brokerName, final TopicConfig topicConfig) {
         // 新建一个 QueueData 实栗
         QueueData queueData = new QueueData();
@@ -489,6 +490,7 @@ public class RouteInfoManager {
         }
     }
 
+    // 当 namesrv 和 broker 的 Channel 破坏的时候
     public void onChannelDestroy(String remoteAddr, Channel channel) {
         String brokerAddrFound = null;
         if (channel != null) {

@@ -41,6 +41,7 @@ import org.apache.rocketmq.srvutil.ServerUtil;
 import org.apache.rocketmq.srvutil.ShutdownHookThread;
 import org.slf4j.LoggerFactory;
 
+// 启动类，main 函数
 public class NamesrvStartup {
 
     private static InternalLogger log;
@@ -83,7 +84,7 @@ public class NamesrvStartup {
 
         final NamesrvConfig namesrvConfig = new NamesrvConfig();
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
-        // 默认端口是 9876
+        // 默认端口是 9876，可以抽取常量
         nettyServerConfig.setListenPort(9876);
         
         // 启动的时候设置了 -c 参数，arg 是 configFile

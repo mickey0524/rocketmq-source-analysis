@@ -221,16 +221,17 @@ public class MixAll {
         return null;
     }
 
+    // 将 URL 转为 String
     public static String file2String(final URL url) {
         InputStream in = null;
         try {
             URLConnection urlConnection = url.openConnection();
             urlConnection.setUseCaches(false);
-            in = urlConnection.getInputStream();
+            in = urlConnection.getInputStream();  // 转为 InputStream
             int len = in.available();
             byte[] data = new byte[len];
             in.read(data, 0, len);
-            return new String(data, "UTF-8");
+            return new String(data, "UTF-8");  // 下面用 DEFAULT_CHARSET，这里用硬编码...
         } catch (Exception ignored) {
         } finally {
             if (null != in) {
@@ -249,7 +250,7 @@ public class MixAll {
         printObjectProperties(logger, object, false);
     }
 
-    // 打印对象属性
+    // 打印对象属性，onlyImportantField 参数指示是否仅打印重要的字段
     public static void printObjectProperties(final InternalLogger logger, final Object object,
         final boolean onlyImportantField) {
         Field[] fields = object.getClass().getDeclaredFields();
@@ -315,7 +316,7 @@ public class MixAll {
     public static Properties object2Properties(final Object object) {
         Properties properties = new Properties();
 
-        Field[] fields = object.getClass().getDeclaredFields();
+        Field[] fields = object.getClass().getDeclaredFields();  // 为啥不用 getFields()
         for (Field field : fields) {
             if (!Modifier.isStatic(field.getModifiers())) {
                 String name = field.getName();
@@ -338,9 +339,11 @@ public class MixAll {
         return properties;
     }
 
+    // Properties => Object
+    // 当 Properties 中存在 Object 中的 Field 的时候，写入 Object
     public static void properties2Object(final Properties p, final Object object) {
         Method[] methods = object.getClass().getMethods();
-        // 通过反射去找 object 的 setProperty 方法
+        // 通过反射去找 object 的 setProperty 方法，其实可以用 getFields() 做兜底，有可能没有设置 set 方法
         for (Method method : methods) {
             String mn = method.getName();
             if (mn.startsWith("set")) {
