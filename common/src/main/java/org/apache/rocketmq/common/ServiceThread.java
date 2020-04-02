@@ -41,6 +41,7 @@ public abstract class ServiceThread implements Runnable {
 
     }
 
+    // 这个可以写出 default this.getClass().getSimpleName();
     public abstract String getServiceName();
 
     // 创建一个 Thread 实例，然后启动

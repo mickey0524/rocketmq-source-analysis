@@ -20,6 +20,7 @@ package org.apache.rocketmq.store;
 /**
  * Dispatcher of commit log.
  */
+// CommitLog 的分发器
 public interface CommitLogDispatcher {
 
     void dispatch(final DispatchRequest request);

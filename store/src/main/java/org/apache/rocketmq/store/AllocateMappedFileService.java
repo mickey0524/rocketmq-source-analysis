@@ -42,7 +42,7 @@ import org.apache.rocketmq.store.config.BrokerRole;
  */
 public class AllocateMappedFileService extends ServiceThread {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
-    private static int waitTimeOut = 1000 * 5;
+    private static int waitTimeOut = 1000 * 5;  // 这个为啥不加 final
     private ConcurrentMap<String, AllocateRequest> requestTable =
         new ConcurrentHashMap<String, AllocateRequest>();
     private PriorityBlockingQueue<AllocateRequest> requestQueue =
@@ -244,7 +244,7 @@ public class AllocateMappedFileService extends ServiceThread {
 
     // 分配请求
     static class AllocateRequest implements Comparable<AllocateRequest> {
-        // Full file path
+        // Full file path，MappedFile 的 filePath 都是 startOffset
         private String filePath;
         private int fileSize;
         private CountDownLatch countDownLatch = new CountDownLatch(1);
@@ -290,6 +290,7 @@ public class AllocateMappedFileService extends ServiceThread {
         // 用于在 PriorityBlockingQueue 中进行比较
         // fileSize 大的排前面
         // fileSize 相同的情况下，offset 小的排前面
+        // 也就是说 CommitLog 会比 ConsumeQueue 优先级高（默认大小情况下）
         public int compareTo(AllocateRequest other) {
             if (this.fileSize < other.fileSize)
                 return 1;

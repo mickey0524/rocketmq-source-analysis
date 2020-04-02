@@ -29,8 +29,8 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
-// 包含了很多 MapedFile，以及每个 MapedFile 的真实大小
-// MapedFile: 包含了具体的文件信息，包括文件路径，文件名，文件起始偏移，写位移，读位移等等信息，同时使用了虚拟内存映射来提高 IO 效率
+// 包含了很多 MappedFile，以及每个 MapedFile 的真实大小
+// MappedFile: 包含了具体的文件信息，包括文件路径，文件名，文件起始偏移，写位移，读位移等等信息，同时使用了虚拟内存映射来提高 IO 效率
 // 无论 CommitLog，还是 ConsumeQueue，都有一个对应的 MappedFileQueue，也就是对应的内存映射文件的数组
 // 读写时，根据 offset 定位到数组中对应的 MappedFile，进行读写，通过 MappedFile，就很好的解决了大文件随机读的性能问题
 public class MappedFileQueue {
@@ -47,8 +47,10 @@ public class MappedFileQueue {
 
     private final AllocateMappedFileService allocateMappedFileService;
 
+    // flushedWhere 和 committedWhere 两个变量非常重要，commit 和 flush 的时候，MappedFileQueue 根据
+    // 这两个变量找到对应的 MappedFile 文件，再进行相应的操作
     private long flushedWhere = 0;
-    private long committedWhere = 0;
+    private long committedWhere = 0; 
 
     private volatile long storeTimestamp = 0;
 
@@ -59,7 +61,7 @@ public class MappedFileQueue {
         this.allocateMappedFileService = allocateMappedFileService;
     }
 
-    // 检查偏移量和文件大小
+    // 检查队列中前后两个 MappedFile 之间的偏移是否为 mappedFileSize
     public void checkSelf() {
 
         if (!this.mappedFiles.isEmpty()) {
@@ -214,6 +216,7 @@ public class MappedFileQueue {
         return 0;
     }
 
+    // 获取队列中最后一个 MappedFile
     public MappedFile getLastMappedFile(final long startOffset, boolean needCreate) {
         long createOffset = -1;  // startOffset 对应的 MappedFile 的 createOffset
         MappedFile mappedFileLast = getLastMappedFile();  // 获取 index 为 size() - 1 的 MappedFile
@@ -236,6 +239,7 @@ public class MappedFileQueue {
                 + UtilAll.offset2FileName(createOffset + this.mappedFileSize);
             MappedFile mappedFile = null;
 
+            // 定义了 AllocateMappedFileService
             if (this.allocateMappedFileService != null) {
                 mappedFile = this.allocateMappedFileService.putRequestAndReturnMappedFile(nextFilePath,
                     nextNextFilePath, this.mappedFileSize);
@@ -339,6 +343,7 @@ public class MappedFileQueue {
     public long getMaxOffset() {
         MappedFile mappedFile = getLastMappedFile();
         if (mappedFile != null) {
+            // 这里用的是 getReadPosition() 方法
             return mappedFile.getFileFromOffset() + mappedFile.getReadPosition();
         }
         return 0;
@@ -384,7 +389,7 @@ public class MappedFileQueue {
         if (null == mfs)
             return 0;
 
-        int mfsLength = mfs.length - 1;
+        int mfsLength = mfs.length - 1;  // 无论如何，会留下最后一个
         int deleteCount = 0;
         List<MappedFile> files = new ArrayList<MappedFile>();
         // 上面不是有 mfs == null 的判断吗。。。
@@ -433,7 +438,7 @@ public class MappedFileQueue {
         int deleteCount = 0;
         if (null != mfs) {
 
-            int mfsLength = mfs.length - 1;
+            int mfsLength = mfs.length - 1;  // 无论如何，会留下最后一个
 
             for (int i = 0; i < mfsLength; i++) {
                 boolean destroy;
@@ -444,7 +449,7 @@ public class MappedFileQueue {
                     // 获取 ConsumeQueue 的 MappedFile 中最后一个 index 对应的 msg 的物理位置
                     long maxOffsetInLogicQueue = result.getByteBuffer().getLong();
                     result.release();
-                    destroy = maxOffsetInLogicQueue < offset;
+                    destroy = maxOffsetInLogicQueue < offset;  // 最大的物理地址小于传入的参数，这个逻辑 MappedFile 可以 delete
                     if (destroy) {
                         log.info("physic min offset " + offset + ", logics in current mappedFile max offset "
                             + maxOffsetInLogicQueue + ", delete it");
@@ -472,6 +477,7 @@ public class MappedFileQueue {
     }
 
     // flushLeastPages 指代一次最少刷几个分页
+    // 返回值为 false，代表正常 flush 了数据
     public boolean flush(final int flushLeastPages) {
         boolean result = true;
         MappedFile mappedFile = this.findMappedFileByOffset(this.flushedWhere, this.flushedWhere == 0);
@@ -491,6 +497,7 @@ public class MappedFileQueue {
     }
 
     // commitLeastPages 指代一次最少 commit 多少个 4k
+    // 返回值为 false，代表正常 commit 了数据
     public boolean commit(final int commitLeastPages) {
         boolean result = true;
         MappedFile mappedFile = this.findMappedFileByOffset(this.committedWhere, this.committedWhere == 0);
@@ -508,7 +515,7 @@ public class MappedFileQueue {
      * Finds a mapped file by offset.
      *
      * @param offset Offset.
-     * @param returnFirstOnNotFound If the mapped file is not found, then return the first one.
+     * @param returnFirstOnNotFound If the mapped file is not found, then return the first one.  // on -> if/when 都更合适吧
      * @return Mapped file or null (when not found and returnFirstOnNotFound is <code>false</code>).
      */
     // 根据 offset 来寻找一个 mapped 文件
@@ -560,7 +567,7 @@ public class MappedFileQueue {
         return null;
     }
 
-    // 获得第一个 MappedFile
+    // 获得第一个 MappedFile，这里为啥不用 while
     public MappedFile getFirstMappedFile() {
         MappedFile mappedFileFirst = null;
 

@@ -28,6 +28,7 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
 
+// NIO 的连接，当 slave 连接上 master 的 ssc 之后，生成一个 HAConnection 实例
 public class HAConnection {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private final HAService haService;
@@ -263,7 +264,7 @@ public class HAConnection {
                         long interval =
                             HAConnection.this.haService.getDefaultMessageStore().getSystemClock().now() - this.lastWriteTimestamp;
 
-                        // 心跳
+                        // 心跳，5s
                         if (interval > HAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig()
                             .getHaSendHeartbeatInterval()) {
 

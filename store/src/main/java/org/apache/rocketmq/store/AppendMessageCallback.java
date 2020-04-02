@@ -22,6 +22,7 @@ import org.apache.rocketmq.common.message.MessageExtBatch;
 /**
  * Write messages callback interface
  */
+// 写消息的回调接口
 public interface AppendMessageCallback {
 
     /**
@@ -29,6 +30,7 @@ public interface AppendMessageCallback {
      *
      * @return How many bytes to write
      */
+    // 当消息序列化之后，写入 ByteBuffer
     AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer,
         final int maxBlank, final MessageExtBrokerInner msg);
 
@@ -38,6 +40,7 @@ public interface AppendMessageCallback {
      * @param messageExtBatch, backed up by a byte array
      * @return How many bytes to write
      */
+    // 当一批消息序列化之后，写入 ByteBuffer
     AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer,
         final int maxBlank, final MessageExtBatch messageExtBatch);
 }

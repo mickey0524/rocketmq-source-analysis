@@ -41,8 +41,8 @@ import org.apache.rocketmq.store.CommitLog;
 import org.apache.rocketmq.store.DefaultMessageStore;
 
 /**
- * rocketmq 的主备同步是这样做的: master 启动以后，会启动一个 ha 端口， 默认 10912，接收 slave 的连接请求；
- * slave 把自己注册到 Nameserver 以后，会在注册结果里面拿到一个 master 的 ha 地址， 然后和 master 建立 ha connection
+ * RocketMQ 的主备同步是这样做的: master 启动以后，会启动一个 ha 端口， 默认 10912，接收 slave 的连接请求；
+ * slave 把自己注册到 Nameserver 以后，会在注册结果里面拿到一个 master 的 ha 地址，然后和 master 建立 ha connection
  * 基于这个 ha 连接，slave 每次发送 8 字节的 slaveRequestOffset,
  * master 收到这个 offset，从 commitlog 拉一批消息，发送 sync request 给 slave (数据格式：8字节 commitlog
  * offset + 4字节消息长度 + commitlog 列表），slave 收到消息以后，写入自己的 commitlog，接着发送下一个 slaveRequestOffset
@@ -271,6 +271,9 @@ public class HAService {
      * GroupTransferService Service
      */
     // 这个可以和 CommitLog 中的 GroupCommitService 结合着看
+    // 用于 SYNC_MASTER 进行 HA 操作
+    // CommitLog 中 handleHA 方法在 SYNC_MASTER 模式下，如果消息允许等待，会卡在那
+    // 等待 HAService.this.push2SlaveMaxOffset.get() >= req.getNextOffset() 满足
     class GroupTransferService extends ServiceThread {
 
         private final WaitNotifyObject notifyTransferObject = new WaitNotifyObject();
@@ -322,6 +325,7 @@ public class HAService {
             }
         }
 
+        // 继承了 ServiceThread
         public void run() {
             log.info(this.getServiceName() + " service started");
 
@@ -351,14 +355,14 @@ public class HAService {
     class HAClient extends ServiceThread {
         private static final int READ_MAX_BUFFER_SIZE = 1024 * 1024 * 4;  // 4M
         private final AtomicReference<String> masterAddress = new AtomicReference<>();
-        private final ByteBuffer reportOffset = ByteBuffer.allocate(8);
+        private final ByteBuffer reportOffset = ByteBuffer.allocate(8);  // slave 向 master 报告自己的 offset
         private SocketChannel socketChannel;
         private Selector selector;
         private long lastWriteTimestamp = System.currentTimeMillis();  // 上次写的时间戳
 
         private long currentReportedOffset = 0;
         private int dispatchPosition = 0;
-        private ByteBuffer byteBufferRead = ByteBuffer.allocate(READ_MAX_BUFFER_SIZE);
+        private ByteBuffer byteBufferRead = ByteBuffer.allocate(READ_MAX_BUFFER_SIZE);  // 用于 slave 接收来自 master 的数据
         private ByteBuffer byteBufferBackup = ByteBuffer.allocate(READ_MAX_BUFFER_SIZE);
 
         public HAClient() throws IOException {
@@ -395,7 +399,7 @@ public class HAService {
 
             for (int i = 0; i < 3 && this.reportOffset.hasRemaining(); i++) {
                 try {
-                    this.socketChannel.write(this.reportOffset);
+                    this.socketChannel.write(this.reportOffset);  // write 成功了，position = limit，hasRemaining() == false
                 } catch (IOException e) {
                     log.error(this.getServiceName()
                         + "reportSlaveMaxOffset this.socketChannel.write exception", e);
@@ -463,6 +467,7 @@ public class HAService {
         }
 
         // 读取 master 发送给 slave 的 commitlog sync response: 8 + 4 + commitlog 的字节数组
+        // 其实从 processReadEvent 中传递 size 过来就行
         private boolean dispatchReadRequest() {
             final int msgHeaderSize = 8 + 4; // phyoffset + size
             int readSocketPos = this.byteBufferRead.position();

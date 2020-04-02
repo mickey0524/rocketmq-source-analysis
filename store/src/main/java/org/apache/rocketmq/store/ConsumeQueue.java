@@ -29,7 +29,7 @@ import org.apache.rocketmq.store.config.StorePathConfigHelper;
 // 逻辑上，一个队列是和某一个 topic 相关的，有自己的队列 queueId
 // ConsumeQueue 存储消息在 CommitLog 中的位置信息
 // ConsumeQueue 是消息的逻辑队列，相当于字典的目录，用来指定消息在物理文件 CommitLog 上的位置
-// Consumer 消费消息的时候，要读2次：先读 ConsumeQueue 得到 offset，再读 CommitLog 得到消息内容
+// Consumer 消费消息的时候，要读 2 次：先读 ConsumeQueue 得到 offset，再读 CommitLog 得到消息内容
 public class ConsumeQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     // 在 DispatchRequest 中，我们说过，其中的 commitLogOffset + msgSize + tagsCode 与 ConsumeQueue 有关
@@ -163,6 +163,9 @@ public class ConsumeQueue {
     }
 
     // 获得逻辑位点，storeTimestamp 最接近 timestamp 的
+    // 这个函数是为了找到 storeTimestamp 最接近 timestamp 的消息的索引是 MappedFile 中的第几个元素
+    // 采用的是二分搜索的方法，因为 storeTimestamp 是全局有序的，可以用逻辑位点去寻找 CommitLog
+    // 中消息的位置，然后找到消息，进而找到 storeTimestamp
     public long getOffsetInQueueByTime(final long timestamp) {
         MappedFile mappedFile = this.mappedFileQueue.getMappedFileByTime(timestamp);  // 找到第一个更新时间大于 ts 的，否则返回最后一个 MappedFile
         if (mappedFile != null) {
@@ -259,6 +262,7 @@ public class ConsumeQueue {
                     long tagsCode = byteBuffer.getLong();  // tagsCode
 
                     if (0 == i) {
+                        // 如果 MappedFile 第一个 index 对应的物理偏移就大于 phyOffest 参数，删除整个 MappedFile 文件
                         if (offset >= phyOffest) {
                             this.mappedFileQueue.deleteLastMappedFile();
                             break;
@@ -307,6 +311,7 @@ public class ConsumeQueue {
             this.consumeQueueExt.truncateByMaxAddress(maxExtAddr);
         }
     }
+
     // 获取最后的物理 offset
     public long getLastOffset() {
         long lastOffset = -1;
@@ -338,6 +343,7 @@ public class ConsumeQueue {
         return lastOffset;
     }
 
+    // flush 刷盘
     public boolean flush(final int flushLeastPages) {
         boolean result = this.mappedFileQueue.flush(flushLeastPages);
         if (isExtReadEnable()) {
@@ -347,6 +353,7 @@ public class ConsumeQueue {
         return result;
     }
 
+    // 删除最大物理偏移小于 offset 的 MappedFile 文件，参数最好取为 phyOffset
     public int deleteExpiredFile(long offset) {
         int cnt = this.mappedFileQueue.deleteExpiredFileByOffset(offset, CQ_STORE_UNIT_SIZE);
         this.correctMinOffset(offset);

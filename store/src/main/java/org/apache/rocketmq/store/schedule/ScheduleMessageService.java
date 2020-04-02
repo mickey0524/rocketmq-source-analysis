@@ -44,15 +44,16 @@ import org.apache.rocketmq.store.PutMessageStatus;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 
-// rocketmq 中对于延迟消息的处理方式如下所示
+// RocketMQ 中对于延迟消息的处理方式如下所示
 // 首先系统预设了 1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h 这样若干个延迟 level
-// 然后 broker 上创建了一个用于延迟消息投递的 topic：SCHEDULE_TOPIC_XXXX，这个 topic 有若干队列， 每一个队列对应了一个延迟 level
+// 然后 broker 上创建了一个用于延迟消息投递的 topic：SCHEDULE_TOPIC_XXXX，这个 topic 有若干 queue，每一个 queue 对应了一个延迟 level
 //
 // 投递者投递消息以后，broker 会根据消息的 delay level ，写入 SCHEDULE_TOPIC_XXXX 对应的队列，同时在 CommitLog 的消息属性中增加真正的 topic 和
 // queueId 属性（见 CommitLog.java 中的 putMessage 函数）。SCHEDULE_TOPIC_XXXX 的每一个队列对应了一个 timer
 // 定时通过 ConsumeQueue 索引项获取 CommitLog 的消息，如果到了延迟投递时间，则写入真实 topic 的队列
 //
-// 一句话总结，就是先把消息投递到 delay topic 暂存，然后通过定时器把 delay topic 暂存的消息投递到真实的 topic
+// 一句话总结，就是先把消息投递到 delay topic 暂存，然后通过定时器
+// 消费 SCHEDULE_TOPIC_XXXX，把到了投递时间的消息投递到真正的 topic + queueId 中
 public class ScheduleMessageService extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 

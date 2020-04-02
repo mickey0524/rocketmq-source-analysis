@@ -41,8 +41,9 @@ import org.apache.rocketmq.store.config.FlushDiskType;
 import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
+// RocketMQ 中非常重要的文件，用于存储数据
 public class MappedFile extends ReferenceResource {
-    public static final int OS_PAGE_SIZE = 1024 * 4;
+    public static final int OS_PAGE_SIZE = 1024 * 4;  // 4k 的页大小
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     // JVM 中映射的虚拟内存总大小
     private static final AtomicLong TOTAL_MAPPED_VIRTUAL_MEMORY = new AtomicLong(0);
@@ -140,10 +141,12 @@ public class MappedFile extends ReferenceResource {
             return viewed(viewedBuffer);
     }
 
+    // 获取 MappedFile 的数量
     public static int getTotalMappedFiles() {
         return TOTAL_MAPPED_FILES.get();
     }
 
+    // 获取所有分配的虚拟内存数量
     public static long getTotalMappedVirtualMemory() {
         return TOTAL_MAPPED_VIRTUAL_MEMORY.get();
     }
@@ -156,7 +159,7 @@ public class MappedFile extends ReferenceResource {
         this.transientStorePool = transientStorePool;
     }
 
-    // 初始化
+    // 初始化，传入的 fileName 是 startOffset
     private void init(final String fileName, final int fileSize) throws IOException {
         this.fileName = fileName;
         this.fileSize = fileSize;
@@ -288,6 +291,7 @@ public class MappedFile extends ReferenceResource {
      * @return The current flushed position
      */
     // flush 操作
+    // flush 的操作是将数据从 MappedByteBuffer/FileChannel -> 磁盘
     public int flush(final int flushLeastPages) {
         if (this.isAbleToFlush(flushLeastPages)) {
             if (this.hold()) {
@@ -317,6 +321,7 @@ public class MappedFile extends ReferenceResource {
         return this.getFlushedPosition();
     }
 
+    // commit 的意思是将数据从 writeBuffer -> FileChannel
     public int commit(final int commitLeastPages) {
         if (writeBuffer == null) {
             //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
@@ -350,6 +355,7 @@ public class MappedFile extends ReferenceResource {
         if (writePos - this.committedPosition.get() > 0) {
             try {
                 // writeBuffer 和 mappedByteBuffer 大小都是 fileSize，所以这里 slice 之后可以随便设置 position 和 limit
+                // writeBuffer 的 position 和 slice 就没有变过，所以 slice 出来的都需要设置 position
                 ByteBuffer byteBuffer = writeBuffer.slice();
                 byteBuffer.position(lastCommittedPosition);
                 byteBuffer.limit(writePos);
@@ -362,7 +368,7 @@ public class MappedFile extends ReferenceResource {
         }
     }
 
-    // 判断是否可以 flush
+    // 判断是否可以 flush，参数是至少领先多少个页才触发 flush
     private boolean isAbleToFlush(final int flushLeastPages) {
         int flush = this.flushedPosition.get();
         int write = getReadPosition();
@@ -378,8 +384,9 @@ public class MappedFile extends ReferenceResource {
         return write > flush;
     }
 
-    // 判断是否可以 commit
+    // 判断是否可以 commit，参数是至少领先多少个页才触发 commit
     protected boolean isAbleToCommit(final int commitLeastPages) {
+        // 比较 commit 和 write 的位置
         int flush = this.committedPosition.get();
         int write = this.wrotePosition.get();
 
@@ -394,14 +401,17 @@ public class MappedFile extends ReferenceResource {
         return write > flush;
     }
 
+    // 获取 flush 的位点
     public int getFlushedPosition() {
         return flushedPosition.get();
     }
 
+    // 设置 flush 的位点
     public void setFlushedPosition(int pos) {
         this.flushedPosition.set(pos);
     }
 
+    // MappedFile 是否写满了
     public boolean isFull() {
         return this.fileSize == this.wrotePosition.get();
     }
@@ -498,10 +508,12 @@ public class MappedFile extends ReferenceResource {
         return false;
     }
 
+    // 获取写位点
     public int getWrotePosition() {
         return wrotePosition.get();
     }
 
+    // 设置写位点
     public void setWrotePosition(int pos) {
         this.wrotePosition.set(pos);
     }
@@ -524,7 +536,7 @@ public class MappedFile extends ReferenceResource {
     public void warmMappedFile(FlushDiskType type, int pages) {
         long beginTime = System.currentTimeMillis();
         // 所谓 slice, 可以理解为 bytebuffer 中剩余容量的一个快照
-        // 比如原来 bytebuffer 长度为 1024，还有 512 字节容量，则新的 bytebuffer 的 pos就是 512，limit 就是 1024
+        // 比如原来 bytebuffer 长度为 1024，还有 512 字节容量，则新的 bytebuffer 的 pos就是 0 就是 512
         ByteBuffer byteBuffer = this.mappedByteBuffer.slice();
         int flush = 0;
         long time = System.currentTimeMillis();

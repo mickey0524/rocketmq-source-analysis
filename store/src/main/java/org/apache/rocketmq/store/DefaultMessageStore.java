@@ -363,6 +363,7 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    // 将消息写入 CommitLog，其实就是做一些校验之后，调用 CommitLog 的 putMessage 方法
     public PutMessageResult putMessage(MessageExtBrokerInner msg) {
         // 服务关闭
         if (this.shutdown) {
@@ -506,7 +507,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     // 获取消息，消费者分组从 topic 的某一个 consume queue 的指定位点（消费队列的逻辑位点） 开始拉消息，一次最多 maxMsgNums 条
-    // offset 是消费队列的逻辑位点，要除 CQ_STORE_UNIT_SIZE 的那种
+    // offset 是消费队列的逻辑位点，要乘 CQ_STORE_UNIT_SIZE 的那种
     public GetMessageResult getMessage(final String group, final String topic, final int queueId, final long offset,
         final int maxMsgNums,
         final MessageFilter messageFilter) {
@@ -1623,13 +1624,17 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         // 删除过期的 file
+        // 只要符合条件，72 小时之前的全部删掉
+        // 每天四点
+        // 磁盘使用量报警
+        // 手动设置了删除次数
         private void deleteExpiredFiles() {
             int deleteCount = 0;
             long fileReservedTime = DefaultMessageStore.this.getMessageStoreConfig().getFileReservedTime();
             int deletePhysicFilesInterval = DefaultMessageStore.this.getMessageStoreConfig().getDeleteCommitLogFilesInterval();
             int destroyMapedFileIntervalForcibly = DefaultMessageStore.this.getMessageStoreConfig().getDestroyMapedFileIntervalForcibly();
 
-            boolean timeup = this.isTimeToDelete();  // 是否到了定时删除的时间
+            boolean timeup = this.isTimeToDelete();  // 是否到了定时删除的时间，每天四点定时删除
             boolean spacefull = this.isSpaceToDelete();  // 磁盘空间是否到了需要删除的时候
             boolean manualDelete = this.manualDeleteFileSeveralTimes > 0;  // 是否设置了手动删除
 
@@ -1762,6 +1767,10 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     // ConsumeQueue 清理服务
+    // 定时清理，Thread.sleep() 卡线程
+    // 内部有一个 lastPhysicalMinOffset 变量记录最小的物理偏移
+    // 然后去 ConsumeQueue 中比对 MappedFileQueue
+    // 从前到后比对 lastPhysicalMinOffset 和索引中的 physicOffset
     class CleanConsumeQueueService {
         private long lastPhysicalMinOffset = 0;
 
@@ -1806,6 +1815,8 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     // ConsumeQueue 刷盘服务
+    // ConsumerQueue 中调用 MappedFileQueue 的 appendMessage 将数据写入 FileChannel
+    // 所以需要刷盘
     class FlushConsumeQueueService extends ServiceThread {
         private static final int RETRY_TIMES_OVER = 3;  // 重试的次数上限
         private long lastFlushTimestamp = 0;
