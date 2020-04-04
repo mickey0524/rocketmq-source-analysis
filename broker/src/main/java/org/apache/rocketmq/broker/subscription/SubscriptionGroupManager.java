@@ -115,6 +115,7 @@ public class SubscriptionGroupManager extends ConfigManager {
     }
 
     // 停止 groupName 对应的消费组的消费
+    // 这里有疑问，为什么不需要 persist 持久化
     public void disableConsume(final String groupName) {
         SubscriptionGroupConfig old = this.subscriptionGroupTable.get(groupName);
         if (old != null) {

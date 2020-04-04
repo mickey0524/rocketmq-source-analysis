@@ -74,7 +74,7 @@ public class ConsumerOffsetManager extends ConfigManager {
         }
     }
 
-    // topic 是否所有的 queueId 消费位点都小于 store 中的最小位点
+    // topic 是否存在 queueId 消费位点小于 store 中的最小位点
     private boolean offsetBehindMuchThanData(final String topic, ConcurrentMap<Integer, Long> table) {
         Iterator<Entry<Integer, Long>> it = table.entrySet().iterator();
         boolean result = !table.isEmpty();
@@ -209,6 +209,7 @@ public class ConsumerOffsetManager extends ConfigManager {
         Set<String> topicGroups = this.offsetTable.keySet();
         // filterGroups 非空，过滤这些 group
         if (!UtilAll.isBlank(filterGroups)) {
+            // 肯定搞个 set 好啊--，这样 O(n^2)
             for (String group : filterGroups.split(",")) {
                 Iterator<String> it = topicGroups.iterator();
                 while (it.hasNext()) {
@@ -226,6 +227,7 @@ public class ConsumerOffsetManager extends ConfigManager {
                 for (Entry<Integer, Long> entry : offSetEntry.getValue().entrySet()) {
                     // minOffset 是 ConsumeQueue 中 topic + queueId 的最小位点
                     long minOffset = this.brokerController.getMessageStore().getMinOffsetInQueue(topic, entry.getKey());
+                    // defense in depth
                     if (entry.getValue() >= minOffset) {
                         Long offset = queueMinOffset.get(entry.getKey());
                         if (offset == null) {

@@ -48,6 +48,8 @@ public class SlaveSynchronize {
 
     // 同步所有
     public void syncAll() {
+        // topic 和 subscription 都需要先 clear，然后再 put
+        // consumerOffset 直接就 put 了
         this.syncTopicConfig();
         this.syncConsumerOffset();
         this.syncDelayOffset();

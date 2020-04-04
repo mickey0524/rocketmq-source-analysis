@@ -450,9 +450,10 @@ public class TopicConfigManager extends ConfigManager {
         }
     }
 
+    // 创建 TopicConfigSerializeWrapper 实例
     public TopicConfigSerializeWrapper buildTopicConfigSerializeWrapper() {
-        topicConfigSerializeWrapper.setTopicConfigTable(this.topicConfigTable);
         TopicConfigSerializeWrapper topicConfigSerializeWrapper = new TopicConfigSerializeWrapper();
+        topicConfigSerializeWrapper.setTopicConfigTable(this.topicConfigTable);
         topicConfigSerializeWrapper.setDataVersion(this.dataVersion);
         return topicConfigSerializeWrapper;
     }

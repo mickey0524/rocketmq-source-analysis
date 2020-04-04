@@ -29,6 +29,7 @@ import org.apache.rocketmq.remoting.netty.RequestTask;
 import org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode;
 
 // broker 快速失败
+// 用于异步处理的时候，当任务等待时间过长，提前终止任务
 public class BrokerFastFailure {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
@@ -39,6 +40,7 @@ public class BrokerFastFailure {
         this.brokerController = brokerController;
     }
 
+    // 从 FutureTaskExt 中取出 Runnable 对象
     public static RequestTask castRunnable(final Runnable runnable) {
         try {
             if (runnable instanceof FutureTaskExt) {

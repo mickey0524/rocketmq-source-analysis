@@ -60,7 +60,8 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 // broker 对外请求的类
 // 封装 Netty
-// 其实就是和 namesrv 交互以及 slave 和 master 之间的交互（最后四个方法，获取 topicConfig 等）
+// 其实就是和 namesrv 交互（注册 broker，注销 broker，查询数据是否改变）
+// 以及 slave 和 master 之间的交互（最后四个方法，获取 topicConfig 等）
 public class BrokerOuterAPI {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final RemotingClient remotingClient;
