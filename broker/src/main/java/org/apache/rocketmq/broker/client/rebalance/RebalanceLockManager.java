@@ -27,6 +27,7 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.common.message.MessageQueue;
 
+// rebalance 锁的管理者
 public class RebalanceLockManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.REBALANCE_LOCK_LOGGER_NAME);
     private final static long REBALANCE_LOCK_MAX_LIVE_TIME = Long.parseLong(System.getProperty(
@@ -43,7 +44,7 @@ public class RebalanceLockManager {
                 try {
                     ConcurrentHashMap<MessageQueue, LockEntry> groupValue = this.mqLockTable.get(group);
                     if (null == groupValue) {
-                        groupValue = new ConcurrentHashMap<>(32);
+                        groupValue = new ConcurrentHashMap<>(32);  // 32 抽常量
                         this.mqLockTable.put(group, groupValue);
                     }
 
@@ -114,6 +115,7 @@ public class RebalanceLockManager {
 
         return false;
     }
+
     // 批量 lock
     public Set<MessageQueue> tryLockBatch(final String group, final Set<MessageQueue> mqs,
         final String clientId) {

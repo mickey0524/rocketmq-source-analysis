@@ -29,7 +29,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     private final ThreadLocalIndex whichItemWorst = new ThreadLocalIndex();
 
-    // 更新 FaultItem 实例
+    // 更新 FaultItem 实例，主要是更新当前的延迟以及不可用的时间段
     @Override
     public void updateFaultItem(final String name, final long currentLatency, final long notAvailableDuration) {
         FaultItem old = this.faultItemTable.get(name);
@@ -101,9 +101,9 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     // 出错项，实现了 Comparable 的接口
     class FaultItem implements Comparable<FaultItem> {
-        private final String name;
-        private volatile long currentLatency;
-        private volatile long startTimestamp;
+        private final String name;  // brokerName
+        private volatile long currentLatency;  // broker 当前投递消息的延迟
+        private volatile long startTimestamp;  // 什么时候开始 broker 能够使用
 
         public FaultItem(final String name) {
             this.name = name;
@@ -135,6 +135,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             return 0;
         }
 
+        // 当前 Broker 是否能够使用
         public boolean isAvailable() {
             return (System.currentTimeMillis() - startTimestamp) >= 0;
         }

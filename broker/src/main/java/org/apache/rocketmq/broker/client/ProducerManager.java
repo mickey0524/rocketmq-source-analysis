@@ -40,7 +40,7 @@ public class ProducerManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final long LOCK_TIMEOUT_MILLIS = 3000;  // 3s
     private static final long CHANNEL_EXPIRED_TIMEOUT = 1000 * 120;  // 120s
-    private static final int GET_AVALIABLE_CHANNEL_RETRY_COUNT = 3;
+    private static final int GET_AVALIABLE_CHANNEL_RETRY_COUNT = 3;  // 获取有效 Channel 的重试次数
     private final Lock groupChannelLock = new ReentrantLock();
     // 按照 producer group 对生产者进行管理
     private final HashMap<String /* group name */, HashMap<Channel, ClientChannelInfo>> groupChannelTable =

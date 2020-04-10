@@ -983,6 +983,7 @@ public class MQClientInstance {
         this.rebalanceService.wakeup();
     }
 
+    // RebalanceService 中会定时调用本方法
     public void doRebalance() {
         for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();
@@ -1075,6 +1076,7 @@ public class MQClientInstance {
         return null;
     }
 
+    // 获取 Broker 的版本
     public int findBrokerVersion(String brokerName, String brokerAddr) {
         if (this.brokerVersionTable.containsKey(brokerName)) {
             if (this.brokerVersionTable.get(brokerName).containsKey(brokerAddr)) {
@@ -1085,6 +1087,7 @@ public class MQClientInstance {
         return 0;
     }
 
+    // 获取消费 topic 的指定 group 的所有消费者
     public List<String> findConsumerIdList(final String topic, final String group) {
         String brokerAddr = this.findBrokerAddrByTopic(topic);
         if (null == brokerAddr) {
@@ -1103,6 +1106,7 @@ public class MQClientInstance {
         return null;
     }
 
+    // 获取 broker address
     public String findBrokerAddrByTopic(final String topic) {
         TopicRouteData topicRouteData = this.topicRouteTable.get(topic);
         if (topicRouteData != null) {

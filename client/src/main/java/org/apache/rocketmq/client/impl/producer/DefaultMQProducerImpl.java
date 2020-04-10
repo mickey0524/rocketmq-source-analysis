@@ -540,10 +540,10 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
         if (topicPublishInfo != null && topicPublishInfo.ok()) {
             boolean callTimeout = false;
-            MessageQueue mq = null;
+            MessageQueue mq = null;  // 记录上一次投递选择的 MQ
             Exception exception = null;
             SendResult sendResult = null;
-            // 同步的话，次数会比异步和单向多很多
+            // 同步的话，重试次数会比异步和单向多很多
             int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
             int times = 0;
             String[] brokersSent = new String[timesTotal];  // 记录本次 send 到哪个 broker

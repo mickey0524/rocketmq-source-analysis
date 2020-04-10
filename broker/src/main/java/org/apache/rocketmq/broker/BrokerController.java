@@ -119,17 +119,17 @@ public class BrokerController {
     private final NettyClientConfig nettyClientConfig;  // netty client 的配置
     private final MessageStoreConfig messageStoreConfig;  // message store 的配置
     private final ConsumerOffsetManager consumerOffsetManager;  // 管理 topic@group 每个 queueId 的消费位点
-    private final ConsumerManager consumerManager;  // 管理消费者，consume group 对某个 topic 的消费配置
+    private final ConsumerManager consumerManager;  // 管理消费者，主要是 group 与 ConsumerGroupInfo 的映射，ConsumerGroupInfo 中存储了 Channel 和 ClientChannelInfo 的映射，以及 topic 与 SubscriptionData 的映射
     private final ConsumerFilterManager consumerFilterManager;
-    private final ProducerManager producerManager;  // 管理生产者
-    private final ClientHousekeepingService clientHousekeepingService;
+    private final ProducerManager producerManager;  // 管理生产者，主要是 Channel 和 ClientChannelInfo 的映射
+    private final ClientHousekeepingService clientHousekeepingService;  // ClientHousekeepingService 实现了 ChannelEventListener 接口，主要用于定时检查不活跃的 Channel
     private final PullMessageProcessor pullMessageProcessor;  // 从 message store 中拉取 msg
     private final PullRequestHoldService pullRequestHoldService;  // 存储 PullRequest，定时判断是否可以 pull msg
     private final MessageArrivingListener messageArrivingListener;  // 消息到来的监听者
     private final Broker2Client broker2Client;
     private final SubscriptionGroupManager subscriptionGroupManager;  // 管理 consume group 的配置
     private final ConsumerIdsChangeListener consumerIdsChangeListener;
-    private final RebalanceLockManager rebalanceLockManager = new RebalanceLockManager();
+    private final RebalanceLockManager rebalanceLockManager = new RebalanceLockManager();  // 用于 rebalance 加锁
     private final BrokerOuterAPI brokerOuterAPI;  // 用于 broker 和 namesrv register/unregister 自己，以及 slave 和 master 之间的同步
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
         "BrokerControllerScheduledThread"));
@@ -640,7 +640,7 @@ public class BrokerController {
         this.brokerStats = brokerStats;
     }
 
-    // 如果消费者消费太慢，可以 disable
+    // 如果消费者消费太慢，可以 disable，保护 Broker
     public void protectBroker() {
         if (this.brokerConfig.isDisableConsumeIfConsumerReadSlowly()) {
             final Iterator<Map.Entry<String, MomentStatsItem>> it = this.brokerStatsManager.getMomentStatsItemSetFallSize().getStatsItemTable().entrySet().iterator();

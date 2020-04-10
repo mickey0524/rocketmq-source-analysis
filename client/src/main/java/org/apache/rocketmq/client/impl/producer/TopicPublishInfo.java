@@ -23,7 +23,7 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 
-// 消息投递的 info 类
+// 消息投递的 info 类，与一个 topic 关联
 public class TopicPublishInfo {
     private boolean orderTopic = false;
     private boolean haveTopicRouterInfo = false;
@@ -40,6 +40,7 @@ public class TopicPublishInfo {
         this.orderTopic = orderTopic;
     }
 
+    // 查询是否有对应的 MessageQueue 可以投递
     public boolean ok() {
         return null != this.messageQueueList && !this.messageQueueList.isEmpty();
     }

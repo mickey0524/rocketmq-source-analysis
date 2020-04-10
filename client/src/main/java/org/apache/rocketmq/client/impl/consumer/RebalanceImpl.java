@@ -252,15 +252,17 @@ public abstract class RebalanceImpl {
         this.truncateMessageQueueNotMyTopic();
     }
 
+    // 获取 Subscription
     public ConcurrentMap<String, SubscriptionData> getSubscriptionInner() {
         return subscriptionInner;
     }
 
+    // 根据 topic 进行 rebalance
     private void rebalanceByTopic(final String topic, final boolean isOrder) {
         switch (messageModel) {
-            // 广播消息模式
+            // 广播消息模式，每个消费者需要消费所有的 MQ
             case BROADCASTING: {
-                Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
+                Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);  // mqSet 是需要消费的 MQ 集合
                 if (mqSet != null) {
                     boolean changed = this.updateProcessQueueTableInRebalance(topic, mqSet, isOrder);
                     if (changed) {
@@ -276,10 +278,10 @@ public abstract class RebalanceImpl {
                 }
                 break;
             }
-            // 集群消息模式
+            // 集群消息模式，所有的 MQ 由 consume group 中的消费者共同消费
             case CLUSTERING: {
                 Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
-                List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup);
+                List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup);  // 所有的消费者 id
                 if (null == mqSet) {
                     if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                         log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
@@ -301,6 +303,7 @@ public abstract class RebalanceImpl {
 
                     List<MessageQueue> allocateResult = null;
                     try {
+                        // cidAll 是所有消费者的 id 集合，this.mQClientFactory.getClientId() 获取本 client 的 id
                         allocateResult = strategy.allocate(
                             this.consumerGroup,
                             this.mQClientFactory.getClientId(),
@@ -349,6 +352,7 @@ public abstract class RebalanceImpl {
         }
     }
 
+    // rebalance 操作中更新 processQueue table
     private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet,
         final boolean isOrder) {
         boolean changed = false;
@@ -357,11 +361,11 @@ public abstract class RebalanceImpl {
         // 删除 gg 的 mq
         while (it.hasNext()) {
             Entry<MessageQueue, ProcessQueue> next = it.next();
-            MessageQueue mq = next.getKey();
-            ProcessQueue pq = next.getValue();
+            MessageQueue mq = next.getKey();  // MQ
+            ProcessQueue pq = next.getValue();  // MQ 对应的 PQ
 
             if (mq.getTopic().equals(topic)) {
-                // mq gg 了
+                // mq gg 了，最新的 mqSet 中不包含此 mq
                 if (!mqSet.contains(mq)) {
                     pq.setDropped(true);
                     if (this.removeUnnecessaryMessageQueue(mq, pq)) {
@@ -371,10 +375,10 @@ public abstract class RebalanceImpl {
                     }
                 } else if (pq.isPullExpired()) {
                     switch (this.consumeType()) {
-                        // pull
+                        // pull 模式
                         case CONSUME_ACTIVELY:
                             break;
-                        // push
+                        // push 模式
                         case CONSUME_PASSIVELY:
                             pq.setDropped(true);
                             if (this.removeUnnecessaryMessageQueue(mq, pq)) {
