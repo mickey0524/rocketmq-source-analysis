@@ -40,6 +40,8 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
  * Remote storage implementation
  */
 // 远程存储实现的 OffsetStore，服务于 CLUSTER 的模式
+// 因为 Rebalance 的存在，因此需要将 Offset 存储在远端
+// 因为一个 MQ 可能会被多个 consumer 消费
 public class RemoteBrokerOffsetStore implements OffsetStore {
     private final static InternalLogger log = ClientLogger.getLog();
     private final MQClientInstance mQClientFactory;
@@ -56,6 +58,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
     public void load() {
     }
 
+    // 更新 offset
     @Override
     public void updateOffset(MessageQueue mq, long offset, boolean increaseOnly) {
         if (mq != null) {
@@ -201,6 +204,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
      * Update the Consumer Offset synchronously, once the Master is off, updated to Slave,
      * here need to be optimized.
      */
+    // 将消费 offset 存储到 broker 处
     @Override
     public void updateConsumeOffsetToBroker(MessageQueue mq, long offset, boolean isOneway) throws RemotingException,
         MQBrokerException, InterruptedException, MQClientException {
@@ -232,6 +236,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
     }
 
     // 这里是和 LocalFileOffsetStore 不同的地方
+    // broker 的 consumerOffsetManager 中进行存储
     private long fetchConsumeOffsetFromBroker(MessageQueue mq) throws RemotingException, MQBrokerException,
         InterruptedException, MQClientException {
         // 同样，先获取 broker 的地址

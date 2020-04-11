@@ -26,6 +26,10 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 /**
  * Offset store interface
  */
+// OffsetStore 仅服务于 Push 模式的消费者
+// Pull 模式，pull 方法的调用需要传入 offset
+// Push 模式 RebalancePushImpl 的 computePullFromWhere 会读取 OffsetStore
+// Push 模式消费消息的时候会 update OffsetStore
 public interface OffsetStore {
     /**
      * Load

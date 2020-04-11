@@ -97,6 +97,7 @@ public class LocalFileOffsetStore implements OffsetStore {
         }
     }
 
+    // 读取 offset
     @Override
     public long readOffset(final MessageQueue mq, final ReadOffsetType type) {
         if (mq != null) {
